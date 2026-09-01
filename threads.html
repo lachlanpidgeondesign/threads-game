@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Threads</title>
+
+<style>
+@font-face{font-family:"Inter";src:url("https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2") format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Literata";src:url("https://fonts.gstatic.com/s/literata/v40/or3hQ6P12-iJxAIgLYTwJrUXnTPm.woff2") format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+
+/* ── tenant theme ─────────────────────────────────────────────────────── */
+:root{
+  --background:oklch(1 0 0); --foreground:oklch(0 0 0);
+  --card:oklch(0.9158 0 89.9); --popover:oklch(0.98 0 0);
+  --primary:oklch(0.448 0.1751 259.2); --secondary:oklch(0.3211 0 89.9);
+  --muted:oklch(0.97 0 0); --muted-foreground:oklch(0.32 0 0);
+  --accent:oklch(0.448 0.1751 259.2);
+  --destructive:oklch(0.5505 0.2155 25);
+  --border:oklch(0.85 0 0); --ring:oklch(0.448 0.1751 259.2);
+  --radius:0.625rem;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-heading:"Literata",system-ui,sans-serif;
+  --font-heading-weight:700;
+  --game-color-connect-surface:oklch(0.7456 0.1326 278.4);
+  --game-guessr-surface:oklch(0.871 0.0965 77.7);
+}
+:root.dark{
+  --background:oklch(0.15 0.01 0); --foreground:oklch(1 0 0);
+  --card:oklch(0.2 0.01 0); --popover:oklch(0.23 0.01 0);
+  --muted:oklch(0.269 0 0); --muted-foreground:oklch(0.745 0 0);
+  --border:oklch(0.3 0.01 0); --ring:oklch(0.448 0.1751 259.2);
+  --destructive:oklch(0.65 0.25 25);
+}
+
+/* ── Threads triad ────────────────────────────────────────────────────── */
+:root{
+  --game-threads-surface:oklch(0.871 0.0965 77.7);
+  --game-threads-detail:oklch(0.412 0.0714 76);
+  --game-threads-accent:oklch(0.7939 0.1467 74.2);
+  --game-threads-on-surface:oklch(0 0 0);
+  --game-threads-on-detail:oklch(1 0 0);
+  --game-threads-on-accent:oklch(0 0 0);
+}
+:where(:root){
+  --_surface:var(--game-threads-surface); --_detail:var(--game-threads-detail);
+  --_accent:var(--game-threads-accent);   --_on-detail:var(--game-threads-on-detail);
+  --_on-accent:var(--game-threads-on-accent);
+}
+:where(:root){
+  --nav-band:color-mix(in oklch,var(--_surface) 50%,transparent);
+  --root-tint:color-mix(in srgb,var(--_surface) 30%,var(--background));
+}
+
+/* ── base ─────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overscroll-behavior:none}
+body{
+  font-family:var(--font-body);font-weight:500;
+  background:var(--root-tint);color:var(--foreground);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+
+#app{
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  text-align:center;position:relative;overflow-x:hidden;
+}
+.screen{display:none;width:100%;flex:1;flex-direction:column;align-items:center}
+.screen.on{display:flex}
+.content{width:100%;max-width:25rem;margin-inline:auto;padding:1rem 1rem 5rem;
+  display:flex;flex-direction:column;align-items:center;gap:.75rem}
+
+/* ── type ─────────────────────────────────────────────────────────────── */
+.display{font-family:var(--font-heading);font-weight:900;font-size:2.25rem;line-height:1.1;color:var(--_detail)}
+.h1{font-family:var(--font-heading);font-weight:700;font-size:1.875rem;line-height:1.2}
+.h2{font-size:1.125rem;font-weight:700}
+.lede{font-size:1.0625rem;line-height:1.55}
+.small{font-size:.875rem}
+.muted{color:var(--muted-foreground)}
+.eyebrow{font-family:var(--font-heading);font-weight:700;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.05em}
+.figure{font-family:var(--font-heading);font-weight:700;font-size:2.25rem;
+  font-variant-numeric:tabular-nums;line-height:1}
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  font-size:1rem;font-weight:700;padding:.875rem 1.5rem;border-radius:999px;
+  border:1px solid transparent;transition:all .2s}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
+.btn--start{background:oklch(0.19 0 0);color:#fff}
+.btn--primary{background:var(--_detail);color:var(--_on-detail)}
+.btn--outline{background:var(--background);color:var(--foreground);border-color:var(--border)}
+.btn--block{width:100%}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btnrow{display:flex;gap:.75rem;width:100%}
+.btn--board{flex:1;padding:.75rem 1rem;
+  background:color-mix(in oklch,var(--_surface) 22%,var(--background));
+  color:var(--muted-foreground);
+  border-color:color-mix(in oklch,var(--_surface) 45%,var(--background))}
+.btn--boardPrimary{background:var(--_accent);color:var(--_on-accent);
+  border-color:color-mix(in oklch,var(--_detail) 45%,var(--_accent));
+  box-shadow:0 3px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent))}
+.btn--boardPrimary:active{transform:translateY(2px);
+  box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent))}
+.textbtn{font-weight:500;color:var(--muted-foreground);display:inline-flex;
+  align-items:center;gap:.375rem;padding:.5rem}
+
+/* ── nav ──────────────────────────────────────────────────────────────── */
+.navband{position:relative;isolation:isolate;width:100%}
+.navband::before{content:"";position:absolute;inset:0;left:-100vw;right:-100vw;
+  z-index:-1;background:var(--nav-band);border-bottom:1px solid var(--_surface)}
+.nav{position:relative;z-index:40;display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:center;width:100%;max-width:32rem;margin-inline:auto;padding:4px .5rem}
+.nav__l{display:flex;align-items:center;gap:.25rem;min-width:0}
+.nav__m{display:flex;justify-content:center}
+.nav__r{display:flex;justify-self:end}
+.timer{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:25px;background:var(--muted);
+  border:1px solid var(--_surface);transition:all .2s}
+.iconbtn:active{transform:scale(.95)}
+.iconbtn--bare{background:none;border:0;width:34px;height:34px}
+
+/* ── grid ─────────────────────────────────────────────────────────────── */
+.grid-wrap{position:relative;width:100%}
+.tgrid{display:grid;grid-template-columns:repeat(5,1fr);
+  gap:10px;padding:6px;
+  touch-action:manipulation;user-select:none}
+.block{background:oklch(0.96 0 0);display:grid;place-items:center;
+  min-height:3.5rem;font-family:var(--font-body);font-weight:700;
+  font-size:clamp(.875rem,4.2vw,1.2rem);color:var(--foreground);
+  cursor:pointer;position:relative;
+  border-radius:10px;
+  border:1px solid oklch(0.88 0 0);
+  box-shadow:0 4px 0 oklch(0.78 0 0),0 4px 8px oklch(0 0 0/.08);
+  transition:background .15s,transform .1s,box-shadow .1s}
+.block:active{transform:translateY(3px);
+  box-shadow:0 1px 0 oklch(0.78 0 0),0 1px 2px oklch(0 0 0/.06)}
+.block--selected{background:var(--_accent);color:var(--_on-accent);
+  border-color:color-mix(in oklch,var(--_detail) 50%,var(--_accent));
+  transform:translateY(3px);
+  box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent)),0 1px 2px oklch(0 0 0/.06)}
+.block--available{background:oklch(0.96 0 0);
+  border-color:oklch(0.72 0 0)}
+.block--found{pointer-events:none;cursor:default;
+  border-color:transparent;
+  box-shadow:none;
+  font-weight:700}
+.block--removing{animation:blockOut .35s ease-in forwards;pointer-events:none}
+@keyframes blockOut{
+  0%{transform:scale(1);opacity:1}
+  50%{transform:scale(1.1) translateY(-4px);opacity:.9}
+  100%{transform:scale(.7) translateY(-20px);opacity:0}
+}
+.block--settle{animation:settle .35s ease-out}
+@keyframes settle{from{transform:translateY(-10px);opacity:.5}to{transform:none;opacity:1}}
+.block--found-pop{animation:foundPop .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes foundPop{0%{transform:scale(.5);opacity:.3}100%{transform:scale(1);opacity:1}}
+
+/* found word row separator */
+.grid-divider{grid-column:1/-1;height:2px;
+  background:var(--border);border-radius:1px;margin:2px 0}
+
+/* ── thread SVG ───────────────────────────────────────────────────────── */
+.thread-svg{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:visible}
+.thread-line{fill:none;stroke:var(--_detail);stroke-width:3;
+  stroke-linecap:round;stroke-linejoin:round;opacity:.5}
+.thread-line--valid{stroke:oklch(0.55 0.18 145);opacity:.7}
+.thread-line--invalid{stroke:var(--destructive);opacity:.7}
+
+/* ── word preview bar ──────────────────────────────────────────────────── */
+.word-preview{display:flex;align-items:center;justify-content:center;gap:.25rem;
+  font-family:var(--font-body);font-weight:700;font-size:1.125rem;
+  min-height:2.25rem;letter-spacing:.02em}
+.wp-block{padding:.125rem .5rem;border-radius:6px;
+  background:var(--_accent);color:var(--_on-accent);min-width:1.75rem;text-align:center}
+.wp-empty{background:oklch(0.93 0 0);color:var(--muted-foreground);font-weight:500}
+.wp-sep{color:var(--muted-foreground);font-size:.75rem}
+
+/* emoji burst */
+.emoji-burst{position:fixed;inset:0;z-index:99;pointer-events:none;overflow:hidden}
+.emoji-burst span{position:absolute;top:50%;left:50%;font-size:2rem;
+  animation:emojiFly var(--dur,1.2s) var(--d,0s) cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes emojiFly{
+  0%{transform:translate(-50%,-50%) scale(0) rotate(0deg);opacity:1}
+  20%{opacity:1;transform:translate(calc(-50% + var(--tx) * .3),calc(-50% + var(--ty) * .3)) scale(1.3) rotate(calc(var(--rot) * .3))}
+  100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) scale(.5) rotate(var(--rot));opacity:0}
+}
+
+/* ── cards ────────────────────────────────────────────────────────────── */
+.card{background:var(--background);border-radius:1rem;padding:1.5rem 1.25rem;
+  width:100%;box-shadow:0 1px 2px oklch(0 0 0/.06),0 1px 3px oklch(0 0 0/.04)}
+.tile{display:flex;align-items:center;gap:.625rem;padding:.75rem .875rem;
+  border-radius:var(--radius);background:var(--tile);color:oklch(0 0 0);
+  text-align:left;flex:1}
+.tile__n{font-family:var(--font-heading);font-weight:700;font-size:.9375rem}
+.tile__s{font-size:.8125rem;opacity:.8}
+.streak{display:grid;grid-template-columns:repeat(7,1fr)}
+.streak__d{display:flex;flex-direction:column;align-items:center;gap:.5rem;font-size:.875rem}
+.streak__o{width:34px;height:34px;border-radius:999px;background:var(--muted);
+  display:grid;place-items:center}
+.streak__o--on{background:var(--_detail);color:var(--_on-detail)}
+
+/* ── misc ─────────────────────────────────────────────────────────────── */
+.howtop{display:flex;justify-content:flex-end;width:100%;max-width:25rem;padding:.5rem}
+
+/* ── pause overlay ────────────────────────────────────────────────────── */
+.pause{position:fixed;inset:0;z-index:60;display:none;place-items:center;
+  background:color-mix(in srgb,var(--background) 88%,transparent);
+  backdrop-filter:blur(6px)}
+.pause.on{display:grid}
+
+/* ── settings sheet ───────────────────────────────────────────────────── */
+.scrim{position:fixed;inset:0;z-index:70;background:oklch(0 0 0/.4);opacity:0;
+  pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:80;
+  background:var(--popover);border-radius:1rem 1rem 0 0;padding:.75rem 1rem 2rem;
+  max-width:32rem;margin-inline:auto;transform:translateY(101%);
+  transition:transform .28s cubic-bezier(.32,.72,0,1);
+  box-shadow:0 -8px 32px oklch(0 0 0/.18)}
+.sheet.on{transform:translateY(0)}
+.sheet__grip{width:36px;height:4px;border-radius:999px;background:var(--border);
+  margin:0 auto .75rem}
+.row{display:flex;align-items:center;gap:.75rem;width:100%;padding:.875rem .25rem;
+  border-bottom:1px solid var(--border);text-align:left;font-size:1rem}
+.row:last-child{border-bottom:0}
+.row__t{flex:1}
+.sw{flex:0 0 44px;height:26px;border-radius:999px;background:var(--border);
+  position:relative;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:999px;background:#fff;transition:transform .2s;
+  box-shadow:0 1px 2px oklch(0 0 0/.3)}
+.sw--on{background:var(--_detail)}
+.sw--on::after{transform:translateX(18px)}
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+.toast{position:fixed;left:50%;bottom:1.75rem;z-index:90;transform:translate(-50%,1rem);
+  background:oklch(0.19 0 0);color:#fff;font-size:.875rem;font-weight:700;
+  padding:.625rem 1.125rem;border-radius:999px;opacity:0;transition:.22s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ── animations ───────────────────────────────────────────────────────── */
+@keyframes shake{0%,to{transform:translate(0)}10%,30%,50%,70%,90%{transform:translate(-2px)}
+  20%,40%,60%,80%{transform:translate(2px)}}
+.animate-shake{animation:.6s shake}
+@keyframes celebrate{0%,to{transform:scale(1)}40%{transform:scale(1.08)}}
+.animate-celebrate{animation:.5s cubic-bezier(.34,1.56,.64,1) celebrate}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ══ START ══════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-start" style="background:var(--_surface);justify-content:center">
+    <div class="content" style="gap:1rem;padding-block:3rem">
+      <div id="mark-lg"></div>
+      <h1 class="display">Threads</h1>
+      <p style="font-size:1rem">Weave five hidden words</p>
+      <button class="btn btn--start btn--block" style="max-width:18rem" data-go="play">Play</button>
+      <p class="small" style="font-weight:700" id="start-date"></p>
+    </div>
+  </section>
+
+  <!-- ══ PLAY ═══════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-play" style="background:var(--background)">
+    <div class="navband">
+      <nav class="nav" aria-label="Game navigation">
+        <div class="nav__l">
+          <button class="iconbtn iconbtn--bare" id="pauseBtn" aria-label="Pause">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M10 9v6M14 9v6"/></svg>
+          </button>
+          <span class="timer" id="timer">00:00</span>
+        </div>
+        <div class="nav__m" id="mark-sm"></div>
+        <div class="nav__r">
+          <button class="iconbtn" id="menuBtn" aria-label="Settings">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+          </button>
+        </div>
+      </nav>
+    </div>
+    <div class="content" style="gap:.875rem;padding-top:1rem">
+      <p class="small muted" id="hud">Find 5 hidden words</p>
+      <div class="word-preview" id="word-preview"></div>
+      <div class="grid-wrap">
+        <div class="tgrid" id="tgrid"></div>
+        <svg class="thread-svg" id="thread-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="btnrow">
+        <button class="btn btn--board btn--boardPrimary" id="clearBtn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7l-4-4 9-9 8 8z"/><path d="m14 5 5 5"/></svg>
+          Clear
+        </button>
+        <button class="btn btn--board btn--boardPrimary" id="shuffleBtn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+          Shuffle
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ COMPLETED ══════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-done">
+    <div class="howtop"><button class="textbtn" data-go="play">Back to puzzle
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button></div>
+    <div class="content" style="gap:.75rem">
+      <div id="mark-done"></div>
+      <p class="eyebrow" id="done-id"></p>
+      <h2 class="h1" id="done-title" style="margin-bottom:.25rem">Puzzle Complete!</h2>
+
+      <div class="card">
+        <p class="small" style="text-transform:uppercase">Time</p>
+        <p class="figure" id="done-time" style="margin:.25rem 0 .5rem">00:00</p>
+        <p id="done-band" style="margin-bottom:1.25rem"></p>
+        <button class="btn btn--primary btn--block" id="shareBtn" style="margin-bottom:.75rem">Share</button>
+        <button class="btn btn--outline btn--block">Sign up for the newsletter</button>
+      </div>
+
+      <p class="small" id="countdown" style="margin:.25rem 0"></p>
+
+      <div class="card">
+        <h3 class="h2" style="margin-bottom:.875rem">More games</h3>
+        <div class="btnrow">
+          <button class="tile" style="--tile:var(--game-guessr-surface)">
+            <span><span class="tile__n">Trace</span><br><span class="tile__s">Can you beat the clock?</span></span>
+          </button>
+          <button class="tile" style="--tile:var(--game-color-connect-surface)">
+            <span><span class="tile__n">Relink</span><br><span class="tile__s">Find the imposters</span></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="h2" style="margin-bottom:1rem" id="streak-title">1-day streak</h3>
+        <div class="streak" id="streak"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PAUSE ══════════════════════════════════════════════════════════ -->
+  <div class="pause" id="pause">
+    <div style="display:grid;gap:1.25rem;justify-items:center;padding:2rem">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted-foreground)"><path d="M10.7 5.1A11 11 0 0 1 21 12c-.5 1-1.2 2-2 2.9M6.6 6.6A11 11 0 0 0 3 12c1.7 3.4 5 6 9 6 1.3 0 2.5-.3 3.6-.7"/><path d="m2 2 20 20"/></svg>
+      <h2 class="h1">Paused</h2>
+      <p class="muted">Your threads are waiting.</p>
+      <button class="btn btn--primary" id="resumeBtn" style="min-width:12rem">Resume</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ SHEET ════════════════════════════════════════════════════════════ -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Settings">
+  <div class="sheet__grip"></div>
+  <div class="row">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+    <span class="row__t">Sound</span>
+    <button class="sw" id="sw-sound" aria-label="Sound"></button>
+  </div>
+  <div class="row">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+    <span class="row__t">Dark mode</span>
+    <button class="sw" id="sw-dark" aria-label="Dark mode"></button>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied</div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════════
+   PUZZLE PACK
+   Grid is 5 rows × 5 columns of letter blocks. Five words are hidden;
+   each word takes one block from each column, left to right.
+   ════════════════════════════════════════════════════════════════════════ */
+const PACK = {
+  "2026-09-01": {
+    grid: [
+      ["EL","EE","M","N","A"],
+      ["M","EP","RK","F","T"],
+      ["A","NI","HA","A","FE"],
+      ["P","IR","A","A","L"],
+      ["G","A","N","D","T"]
+    ],
+    words: ["ELEPHANT","MEERKAT","ANIMAL","PANDA","GIRAFFE"],
+    category: "Animals",
+    categoryWord: "ANIMAL",
+    members: ["ELEPHANT","MEERKAT","PANDA","GIRAFFE"],
+    emojis: {"ELEPHANT":"🐘","MEERKAT":"🦡","PANDA":"🐼","GIRAFFE":"🦒","ANIMAL":"🐾"}
+  }
+};
+
+const PAR_SECONDS = 180;
+const BANDS = [
+  [0.5, "Way ahead of the curve"],
+  [1.0, "Ahead of the curve"],
+  [1.6, "Right on the curve"],
+  [Infinity, "You got there in the end"]
+];
+
+/* ── level identity ────────────────────────────────────────────────────── */
+const DATES = Object.keys(PACK).sort();
+const TODAY = DATES[DATES.length - 1];
+
+/* Word-row colors: 5 distinct hues for found words */
+const WORD_COLORS = [
+  {bg:"oklch(0.82 0.12 75)",  text:"oklch(0.2 0.05 75)"},   // amber
+  {bg:"oklch(0.80 0.12 175)", text:"oklch(0.15 0.05 175)"},  // teal
+  {bg:"oklch(0.82 0.11 145)", text:"oklch(0.2 0.05 145)"},   // green
+  {bg:"oklch(0.82 0.11 25)",  text:"oklch(0.2 0.05 25)"},    // coral
+  {bg:"oklch(0.80 0.11 280)", text:"oklch(0.2 0.05 280)"},   // purple
+];
+
+const S = {
+  date: TODAY,
+  columns: [],          // columns[c] = [{text, origRow, id}]
+  selection: [],        // [{col, idx, block}]
+  found: [],            // found word strings
+  foundBlocks: [],      // [{word, blocks:[{col,block}], colorIdx}]
+  removed: new Set(),   // "origRow-col" ids
+  seconds: 0,
+  running: false,
+  won: false,
+  solved: new Set(),
+  dark: false,
+  sound: true,
+  checking: false       // debounce word check
+};
+
+const $ = s => document.querySelector(s);
+const el = (t, cls, html) => { const e = document.createElement(t);
+  if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+function puzzle() { return PACK[S.date]; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   GRID STATE
+   ════════════════════════════════════════════════════════════════════════ */
+function initGrid() {
+  const grid = puzzle().grid;
+  S.columns = [];
+  for (let c = 0; c < 5; c++) {
+    S.columns[c] = [];
+    for (let r = 0; r < grid.length; r++) {
+      const id = r + "-" + c;
+      if (!S.removed.has(id)) {
+        S.columns[c].push({ text: grid[r][c], origRow: r, id });
+      }
+    }
+  }
+}
+
+function shuffleColumns() {
+  for (let c = 0; c < 5; c++) {
+    const arr = S.columns[c];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  clearSelection();
+  renderGrid(true);
+  drawThread();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER — found words at top of grid, active blocks below
+   ════════════════════════════════════════════════════════════════════════ */
+function renderGrid(settle, foundPop) {
+  const g = $("#tgrid");
+  g.innerHTML = "";
+
+  const totalFoundRows = S.foundBlocks.length;
+  const activeRows = Math.max(...S.columns.map(c => c.length), 0);
+  const totalRows = totalFoundRows + (totalFoundRows > 0 && activeRows > 0 ? 1 : 0) + activeRows;
+  if (totalRows === 0) return;
+
+  let rowCursor = 1;
+
+  /* ── found word rows (colored, at the top) ─────────────────────────── */
+  for (let fi = 0; fi < S.foundBlocks.length; fi++) {
+    const fw = S.foundBlocks[fi];
+    const color = WORD_COLORS[fw.colorIdx % WORD_COLORS.length];
+    for (const fb of fw.blocks) {
+      const div = document.createElement("div");
+      div.className = "block block--found";
+      div.textContent = fb.block.text;
+      div.style.gridColumn = fb.col + 1;
+      div.style.gridRow = rowCursor;
+      div.style.background = color.bg;
+      div.style.color = color.text;
+      div.style.borderColor = "transparent";
+      div.style.boxShadow = "none";
+      if (foundPop && fi === S.foundBlocks.length - 1) div.classList.add("block--found-pop");
+      g.appendChild(div);
+    }
+    rowCursor++;
+  }
+
+  /* ── divider between found and active ──────────────────────────────── */
+  if (totalFoundRows > 0 && activeRows > 0) {
+    const divider = document.createElement("div");
+    divider.className = "grid-divider";
+    divider.style.gridRow = rowCursor;
+    g.appendChild(divider);
+    rowCursor++;
+  }
+
+  /* ── active blocks ─────────────────────────────────────────────────── */
+  const nextCol = S.selection.length;
+  for (let c = 0; c < 5; c++) {
+    for (let i = 0; i < S.columns[c].length; i++) {
+      const block = S.columns[c][i];
+      const div = document.createElement("div");
+      div.className = "block";
+      div.dataset.col = c;
+      div.dataset.idx = i;
+      div.dataset.id = block.id;
+      div.textContent = block.text;
+      div.style.gridColumn = c + 1;
+      div.style.gridRow = rowCursor + i;
+
+      const sel = S.selection.find(s => s.col === c);
+      if (sel && sel.block.id === block.id) div.classList.add("block--selected");
+      else if (!S.won && !S.checking && c === nextCol && nextCol < 5)
+        div.classList.add("block--available");
+
+      if (settle) div.classList.add("block--settle");
+      g.appendChild(div);
+    }
+  }
+}
+
+function renderWordPreview() {
+  const wp = $("#word-preview");
+  wp.innerHTML = "";
+  for (let c = 0; c < 5; c++) {
+    if (c > 0) wp.appendChild(el("span", "wp-sep", "·"));
+    const sel = S.selection.find(s => s.col === c);
+    if (sel) {
+      wp.appendChild(el("span", "wp-block", sel.block.text));
+    } else {
+      wp.appendChild(el("span", "wp-block wp-empty", "_"));
+    }
+  }
+}
+
+function updateHud() {
+  const p = puzzle();
+  const remaining = p.words.length - S.found.length;
+  $("#hud").textContent = S.won ? "All words found!"
+    : remaining === p.words.length ? "Find 5 hidden words \xb7 select blocks left \u2192 right"
+    : remaining + " word" + (remaining > 1 ? "s" : "") + " remaining";
+}
+
+/* ── thread SVG ────────────────────────────────────────────────────────── */
+function drawThread(cls) {
+  const svg = $("#thread-svg");
+  const container = $(".grid-wrap");
+  svg.innerHTML = "";
+  if (S.selection.length === 0) return;
+
+  const cRect = container.getBoundingClientRect();
+  svg.setAttribute("viewBox", "0 0 " + cRect.width + " " + cRect.height);
+  svg.setAttribute("width", cRect.width);
+  svg.setAttribute("height", cRect.height);
+
+  const points = [];
+  for (const s of S.selection) {
+    const blockEl = document.querySelector('[data-id="' + s.block.id + '"]');
+    if (!blockEl) continue;
+    const bRect = blockEl.getBoundingClientRect();
+    points.push({
+      x: bRect.left + bRect.width / 2 - cRect.left,
+      y: bRect.top + bRect.height / 2 - cRect.top
+    });
+  }
+  if (points.length < 1) return;
+
+  if (points.length > 1) {
+    const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    polyline.setAttribute("points", points.map(p => p.x + "," + p.y).join(" "));
+    polyline.setAttribute("class", "thread-line" + (cls ? " thread-line--" + cls : ""));
+    svg.appendChild(polyline);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   INTERACTION
+   ════════════════════════════════════════════════════════════════════════ */
+$("#tgrid").addEventListener("click", e => {
+  const blockEl = e.target.closest(".block");
+  if (!blockEl || S.won || S.checking) return;
+
+  const col = parseInt(blockEl.dataset.col);
+  const idx = parseInt(blockEl.dataset.idx);
+  const block = S.columns[col][idx];
+  const nextCol = S.selection.length;
+
+  const existingIdx = S.selection.findIndex(s => s.col === col);
+
+  if (existingIdx >= 0) {
+    if (S.selection[existingIdx].block.id === block.id) {
+      S.selection = S.selection.slice(0, existingIdx);
+    } else {
+      S.selection = S.selection.slice(0, existingIdx);
+      S.selection.push({ col, idx, block });
+    }
+  } else if (col === nextCol) {
+    S.selection.push({ col, idx, block });
+  } else {
+    return;
+  }
+
+  if (!S.running && !S.won) startClock();
+  renderGrid();
+  renderWordPreview();
+  drawThread();
+
+  if (S.selection.length === 5) {
+    S.checking = true;
+    renderGrid(); // re-render to remove "available" highlights
+    setTimeout(() => checkAndHandleWord(), 400);
+  }
+});
+
+$("#clearBtn").onclick = () => { clearSelection(); renderGrid(); renderWordPreview(); drawThread(); };
+$("#shuffleBtn").onclick = () => shuffleColumns();
+
+function clearSelection() { S.selection = []; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   WORD CHECK
+   ════════════════════════════════════════════════════════════════════════ */
+function checkAndHandleWord() {
+  const word = S.selection.map(s => s.block.text).join("");
+  const p = puzzle();
+
+  if (p.words.includes(word) && !S.found.includes(word)) {
+    handleValidWord(word);
+  } else {
+    handleInvalidWord();
+  }
+}
+
+function handleValidWord(word) {
+  const p = puzzle();
+  S.found.push(word);
+  drawThread("valid");
+
+  // Record the found blocks for the colored top rows
+  const foundEntry = {
+    word,
+    blocks: S.selection.map(s => ({ col: s.col, block: s.block })),
+    colorIdx: S.foundBlocks.length
+  };
+
+  // Animate blocks out briefly
+  for (const s of S.selection) {
+    const blockEl = document.querySelector('[data-id="' + s.block.id + '"]');
+    if (blockEl) blockEl.classList.add("block--removing");
+  }
+
+  setTimeout(() => {
+    // Remove from active columns
+    for (const s of S.selection) S.removed.add(s.block.id);
+    S.foundBlocks.push(foundEntry);
+    S.selection = [];
+    S.checking = false;
+    initGrid();
+    renderGrid(true, true);
+    renderWordPreview();
+    updateHud();
+    drawThread();
+
+    // Category reveal?
+    if (word === p.categoryWord) {
+      setTimeout(() => showCategoryReveal(), 400);
+    }
+
+    // Completion?
+    if (S.found.length === p.words.length && !S.won) {
+      setTimeout(() => finish(), 800);
+    }
+  }, 400);
+}
+
+function handleInvalidWord() {
+  drawThread("invalid");
+  for (const s of S.selection) {
+    const blockEl = document.querySelector('[data-id="' + s.block.id + '"]');
+    if (blockEl) {
+      blockEl.classList.add("animate-shake");
+    }
+  }
+  toast("Not a valid word");
+
+  setTimeout(() => {
+    S.selection = [];
+    S.checking = false;
+    renderGrid();
+    renderWordPreview();
+    drawThread();
+  }, 650);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CATEGORY REVEAL — fun animation when ANIMAL is found
+   ════════════════════════════════════════════════════════════════════════ */
+function showCategoryReveal() {
+  emojiBurst();
+  toast("🐾 They're all animals!");
+}
+
+function emojiBurst() {
+  const animalEmojis = ["🐘","🦒","🐼","🦡","🐾","🦁","🐯","🐻","🐵","🦊","🦌","🐨","🐸","🦜","🐢"];
+  const container = document.createElement("div");
+  container.className = "emoji-burst";
+  for (let i = 0; i < 35; i++) {
+    const span = document.createElement("span");
+    span.textContent = animalEmojis[Math.floor(Math.random() * animalEmojis.length)];
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 150 + Math.random() * 350;
+    span.style.setProperty("--tx", Math.cos(angle) * dist + "px");
+    span.style.setProperty("--ty", Math.sin(angle) * dist + "px");
+    span.style.setProperty("--rot", (Math.random() * 720 - 360) + "deg");
+    span.style.setProperty("--d", (Math.random() * 0.25) + "s");
+    span.style.setProperty("--dur", (0.9 + Math.random() * 0.6) + "s");
+    span.style.fontSize = (1.2 + Math.random() * 1.5) + "rem";
+    container.appendChild(span);
+  }
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 2500);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CLOCK
+   ════════════════════════════════════════════════════════════════════════ */
+let tick = null;
+const mmss = s => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+function startClock() {
+  S.running = true;
+  clearInterval(tick);
+  tick = setInterval(() => { S.seconds++; $("#timer").textContent = mmss(S.seconds); }, 1000);
+}
+function stopClock() { S.running = false; clearInterval(tick); }
+
+/* ── pause ─────────────────────────────────────────────────────────────── */
+$("#pauseBtn").onclick = () => { stopClock(); $("#pause").classList.add("on"); };
+$("#resumeBtn").onclick = () => { $("#pause").classList.remove("on"); if (!S.won) startClock(); };
+
+/* ════════════════════════════════════════════════════════════════════════
+   COMPLETION
+   ════════════════════════════════════════════════════════════════════════ */
+function finish() {
+  S.won = true;
+  stopClock();
+  S.solved.add(S.date);
+  const total = S.seconds;
+  const ratio = total / PAR_SECONDS;
+  $("#done-time").textContent = mmss(total);
+  $("#done-band").textContent = BANDS.find(([t]) => ratio <= t)[1];
+  $("#done-id").textContent = "Threads \xb7 " + fmtShort(S.date);
+  buildStreak();
+  go("done");
+  setTimeout(() => $("#done-title").classList.add("animate-celebrate"), 300);
+}
+
+/* ── share ──────────────────────────────────────────────────────────────── */
+$("#shareBtn").onclick = async () => {
+  const p = puzzle();
+  const lines = S.found.map(w => (p.emojis[w] || "🧵") + " " + w);
+  const txt = "Threads \xb7 " + fmtShort(S.date) + "\n\u23f1 " + mmss(S.seconds)
+    + " \xb7 " + S.found.length + "/5\n\n" + lines.join("\n")
+    + "\n\nCategory: " + p.category + " " + (p.emojis[p.categoryWord] || "")
+    + "\n\ndailymail.co.uk/puzzles";
+  try { await navigator.clipboard.writeText(txt); toast("Copied"); }
+  catch { toast("Copy failed"); }
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   SHELL
+   ════════════════════════════════════════════════════════════════════════ */
+const MARK = size => '<img src="Thread.svg" width="' + size + '" height="' + size + '" alt="Threads" style="display:block;image-rendering:pixelated">';
+
+function go(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $("#s-" + name).classList.add("on");
+  document.body.style.background =
+    name === "start" ? "var(--_surface)"
+    : name === "done" ? "var(--root-tint)"
+    : "var(--background)";
+  closeSheet();
+  if (name === "play") {
+    renderGrid();
+    renderWordPreview();
+    updateHud();
+    requestAnimationFrame(() => drawThread());
+  }
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("[data-go]").forEach(b =>
+  b.onclick = () => go(b.dataset.go));
+
+const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
+const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
+$("#menuBtn").onclick = openSheet;
+$("#scrim").onclick = closeSheet;
+
+$("#sw-dark").onclick = e => {
+  S.dark = !S.dark;
+  document.documentElement.classList.toggle("dark", S.dark);
+  e.currentTarget.classList.toggle("sw--on", S.dark);
+};
+$("#sw-sound").onclick = e => {
+  S.sound = !S.sound;
+  e.currentTarget.classList.toggle("sw--on", S.sound);
+};
+$("#sw-sound").classList.add("sw--on");
+
+function resetRound() {
+  S.selection = []; S.found = []; S.foundBlocks = []; S.removed.clear();
+  S.seconds = 0; S.won = false; S.checking = false;
+  stopClock(); $("#timer").textContent = "00:00";
+  initGrid();
+}
+
+/* streak */
+function buildStreak() {
+  const box = $("#streak"); box.innerHTML = "";
+  const dow = new Date(S.date + "T00:00:00Z").getUTCDay();
+  const todayIdx = (dow + 6) % 7;
+  ["M","T","W","T","F","S","S"].forEach((L, i) => {
+    const d = el("div", "streak__d", L);
+    const o = el("span", "streak__o" + (i === todayIdx ? " streak__o--on" : ""));
+    if (i === todayIdx) o.innerHTML =
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 4-2 5-2 8a2 2 0 0 0 4 0c0-1 1 1 1 3a3 3 0 0 1-6 0c0-1-1 0-1 2a5 5 0 0 0 10 0c0-6-6-8-6-13z"/></svg>';
+    d.appendChild(o); box.appendChild(d);
+  });
+  $("#streak-title").textContent = "1-day streak";
+}
+
+/* dates */
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const FULLM = ["January","February","March","April","May","June","July",
+  "August","September","October","November","December"];
+const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd"
+  : n % 10 === 3 && n !== 13 ? "rd" : "th");
+function fmtShort(iso) { const d = new Date(iso + "T00:00:00Z");
+  return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
+function fmtLong(iso) { const d = new Date(iso + "T00:00:00Z");
+  return DAYS[d.getUTCDay()] + ", " + FULLM[d.getUTCMonth()] + " " + ord(d.getUTCDate()); }
+
+/* countdown */
+setInterval(() => {
+  const now = new Date();
+  const next = new Date(now); next.setHours(24, 0, 0, 0);
+  const s = Math.floor((next - now) / 1000);
+  const el = $("#countdown");
+  if (el) el.textContent = "Next Threads in: " +
+    [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60]
+      .map(n => String(n).padStart(2, "0")).join(":");
+}, 1000);
+
+let toastT;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1600);
+}
+
+/* ── boot ──────────────────────────────────────────────────────────────── */
+$("#mark-lg").innerHTML = MARK(76);
+$("#mark-sm").innerHTML = MARK(32);
+$("#mark-done").innerHTML = MARK(52);
+$("#start-date").textContent = (() => { const d = new Date(TODAY + "T00:00:00Z");
+  return DAYS[d.getUTCDay()] + ", " + FULLM[d.getUTCMonth()] + " " + ord(d.getUTCDate()) + ", " + d.getUTCFullYear(); })();
+initGrid();
+go("start");
+</script>
+</body>
+</html>
