@@ -53,6 +53,36 @@
   --root-tint:color-mix(in srgb,var(--_surface) 30%,var(--background));
 }
 
+/* ── tokens: formerly hard-coded values (Phase 0.5) ───────────────────── */
+:root{
+  /* ink — near-black for start button + toast */
+  --c-ink:oklch(0.19 0 0);
+  /* block surfaces + chunky shadow stack */
+  --block-bg:oklch(0.96 0 0);
+  --block-border:oklch(0.88 0 0);
+  --block-border-strong:oklch(0.72 0 0);
+  --block-shadow:oklch(0.78 0 0);
+  --wp-empty-bg:oklch(0.93 0 0);
+  /* thread feedback */
+  --thread-valid:oklch(0.55 0.18 145);
+  /* category reveal glow */
+  --shimmer-gold:oklch(0.85 0.14 80);
+  /* found-word row hues (were WORD_COLORS in JS) */
+  --word-c0-bg:oklch(0.82 0.12 75);  --word-c0-text:oklch(0.2 0.05 75);
+  --word-c1-bg:oklch(0.80 0.12 175); --word-c1-text:oklch(0.15 0.05 175);
+  --word-c2-bg:oklch(0.82 0.11 145); --word-c2-text:oklch(0.2 0.05 145);
+  --word-c3-bg:oklch(0.82 0.11 25);  --word-c3-text:oklch(0.2 0.05 25);
+  --word-c4-bg:oklch(0.80 0.11 280); --word-c4-text:oklch(0.2 0.05 280);
+}
+:root.dark{
+  /* dark-mode block overrides */
+  --block-bg:oklch(0.25 0 0);
+  --block-border:oklch(0.32 0 0);
+  --block-border-strong:oklch(0.45 0 0);
+  --block-shadow:oklch(0.18 0 0);
+  --wp-empty-bg:oklch(0.28 0 0);
+}
+
 /* ── base ─────────────────────────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{overscroll-behavior:none}
@@ -92,7 +122,7 @@ svg{display:block}
   border:1px solid transparent;transition:all .2s}
 .btn:active{transform:scale(.98)}
 .btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
-.btn--start{background:oklch(0.19 0 0);color:#fff}
+.btn--start{background:var(--c-ink);color:#fff}
 .btn--primary{background:var(--_detail);color:var(--_on-detail)}
 .btn--outline{background:var(--background);color:var(--foreground);border-color:var(--border)}
 .btn--block{width:100%}
@@ -131,26 +161,32 @@ svg{display:block}
 .tgrid{display:grid;grid-template-columns:repeat(5,1fr);
   gap:10px;padding:6px;
   touch-action:manipulation;user-select:none}
-.block{background:oklch(0.96 0 0);display:grid;place-items:center;
+.block{background:var(--block-bg);display:grid;place-items:center;
   min-height:3.5rem;font-family:var(--font-body);font-weight:700;
   font-size:clamp(.875rem,4.2vw,1.2rem);color:var(--foreground);
   cursor:pointer;position:relative;
   border-radius:10px;
-  border:1px solid oklch(0.88 0 0);
-  box-shadow:0 4px 0 oklch(0.78 0 0),0 4px 8px oklch(0 0 0/.08);
+  border:1px solid var(--block-border);
+  box-shadow:0 4px 0 var(--block-shadow),0 4px 8px oklch(0 0 0/.08);
   transition:background .15s,transform .1s,box-shadow .1s}
 .block:active{transform:translateY(3px);
-  box-shadow:0 1px 0 oklch(0.78 0 0),0 1px 2px oklch(0 0 0/.06)}
+  box-shadow:0 1px 0 var(--block-shadow),0 1px 2px oklch(0 0 0/.06)}
 .block--selected{background:var(--_accent);color:var(--_on-accent);
   border-color:color-mix(in oklch,var(--_detail) 50%,var(--_accent));
   transform:translateY(3px);
   box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent)),0 1px 2px oklch(0 0 0/.06)}
-.block--available{background:oklch(0.96 0 0);
-  border-color:oklch(0.72 0 0)}
+.block--available{background:var(--block-bg);
+  border-color:var(--block-border-strong)}
 .block--found{pointer-events:none;cursor:default;
   border-color:transparent;
   box-shadow:none;
   font-weight:700}
+/* found-word row hues (Phase 0.5 — were WORD_COLORS in JS) */
+.found--c0{background:var(--word-c0-bg);color:var(--word-c0-text)}
+.found--c1{background:var(--word-c1-bg);color:var(--word-c1-text)}
+.found--c2{background:var(--word-c2-bg);color:var(--word-c2-text)}
+.found--c3{background:var(--word-c3-bg);color:var(--word-c3-text)}
+.found--c4{background:var(--word-c4-bg);color:var(--word-c4-text)}
 .block--removing{animation:blockOut .35s ease-in forwards;pointer-events:none}
 @keyframes blockOut{
   0%{transform:scale(1);opacity:1}
@@ -170,7 +206,7 @@ svg{display:block}
 .thread-svg{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:visible}
 .thread-line{fill:none;stroke:var(--_detail);stroke-width:3;
   stroke-linecap:round;stroke-linejoin:round;opacity:.5}
-.thread-line--valid{stroke:oklch(0.55 0.18 145);opacity:.7}
+.thread-line--valid{stroke:var(--thread-valid);opacity:.7}
 .thread-line--invalid{stroke:var(--destructive);opacity:.7}
 
 /* ── word preview bar ──────────────────────────────────────────────────── */
@@ -179,14 +215,14 @@ svg{display:block}
   min-height:2.25rem;letter-spacing:.02em}
 .wp-block{padding:.125rem .5rem;border-radius:6px;
   background:var(--_accent);color:var(--_on-accent);min-width:1.75rem;text-align:center}
-.wp-empty{background:oklch(0.93 0 0);color:var(--muted-foreground);font-weight:500}
+.wp-empty{background:var(--wp-empty-bg);color:var(--muted-foreground);font-weight:500}
 .wp-sep{color:var(--muted-foreground);font-size:.75rem}
 
 /* category shimmer — golden glow wave across found row */
 .block--shimmer{animation:shimmerWave .8s var(--d,0s) ease both}
 @keyframes shimmerWave{
   0%{filter:brightness(1);box-shadow:none}
-  40%{filter:brightness(1.35);box-shadow:0 0 12px oklch(0.85 0.14 80/.6),0 0 24px oklch(0.85 0.14 80/.25)}
+  40%{filter:brightness(1.35);box-shadow:0 0 12px color-mix(in oklch,var(--shimmer-gold) 60%,transparent),0 0 24px color-mix(in oklch,var(--shimmer-gold) 25%,transparent)}
   100%{filter:brightness(1);box-shadow:none}
 }
 
@@ -206,6 +242,55 @@ svg{display:block}
 
 /* ── misc ─────────────────────────────────────────────────────────────── */
 .howtop{display:flex;justify-content:flex-end;width:100%;max-width:25rem;padding:.5rem}
+
+/* ── how to play ──────────────────────────────────────────────────────── */
+.how-content{gap:1.25rem;padding-block:2.5rem}
+.how-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:22rem;margin-inline:auto}
+.how-block{aspect-ratio:1;display:grid;place-items:center;
+  font-family:var(--font-body);font-weight:700;
+  font-size:clamp(.8rem,4vw,1.1rem);color:var(--foreground);
+  background:oklch(0.96 0 0);border-radius:10px;border:1px solid oklch(0.88 0 0);
+  box-shadow:0 4px 0 oklch(0.78 0 0),0 4px 8px oklch(0 0 0/.08)}
+.how-block--theme{background:var(--_accent);color:var(--_on-accent);
+  border-color:color-mix(in oklch,var(--_detail) 50%,var(--_accent));
+  transform:translateY(3px);
+  box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent)),0 1px 2px oklch(0 0 0/.06)}
+.how-steps{display:flex;flex-direction:column;gap:1rem;width:100%;max-width:22rem;margin-inline:auto;text-align:left}
+.how-step{display:flex;gap:.75rem;align-items:flex-start}
+.how-step__n{flex:0 0 1.75rem;height:1.75rem;border-radius:999px;
+  display:grid;place-items:center;font-family:var(--font-heading);font-weight:700;
+  font-size:.9375rem;background:var(--_detail);color:var(--_on-detail)}
+.how-step__t{font-size:.9375rem;line-height:1.45;padding-top:.15rem}
+.how-chip{display:inline-block;padding:.05rem .4rem;border-radius:6px;
+  background:var(--_accent);color:var(--_on-accent);font-weight:700}
+:root.dark .how-block{background:oklch(0.25 0 0);color:var(--foreground);
+  border-color:oklch(0.32 0 0);box-shadow:0 4px 0 oklch(0.18 0 0),0 4px 8px oklch(0 0 0/.2)}
+
+/* ── levels select ────────────────────────────────────────────────────── */
+.levels-content{gap:1rem;padding-block:2rem;max-width:30rem}
+.levels-head{display:flex;flex-direction:column;align-items:center;gap:.25rem;width:100%}
+.levels-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;width:100%}
+.lvl{position:relative;display:flex;flex-direction:column;gap:.5rem;
+  padding:.875rem;border-radius:var(--radius);text-align:left;
+  background:var(--background);border:1px solid var(--border);
+  box-shadow:0 1px 2px oklch(0 0 0/.05);transition:transform .1s,box-shadow .15s}
+.lvl:active{transform:scale(.98)}
+.lvl__top{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.lvl__n{font-family:var(--font-heading);font-weight:700;font-size:.8125rem;
+  color:var(--muted-foreground)}
+.lvl__cat{font-family:var(--font-heading);font-weight:700;font-size:1.0625rem;
+  line-height:1.2;color:var(--foreground)}
+.lvl__emoji{font-size:1.25rem;line-height:1}
+.lvl__badge{display:inline-flex;align-items:center;gap:.25rem;align-self:flex-start;
+  font-size:.6875rem;font-weight:700;padding:.15rem .5rem;border-radius:999px;
+  text-transform:uppercase;letter-spacing:.03em}
+.lvl__badge--new{background:var(--muted);color:var(--muted-foreground)}
+.lvl__badge--started{background:color-mix(in oklch,var(--_accent) 35%,var(--background));
+  color:var(--_detail)}
+.lvl__badge--done{background:var(--_detail);color:var(--_on-detail)}
+.lvl--done{border-color:color-mix(in oklch,var(--_detail) 45%,var(--border))}
+.lvl__check{position:absolute;top:.5rem;right:.5rem}
+:root.dark .lvl{background:oklch(0.22 0 0)}
 
 /* ── pause overlay ────────────────────────────────────────────────────── */
 .pause{position:fixed;inset:0;z-index:60;display:none;place-items:center;
@@ -229,6 +314,15 @@ svg{display:block}
   border-bottom:1px solid var(--border);text-align:left;font-size:1rem}
 .row:last-child{border-bottom:0}
 .row__t{flex:1}
+.sheet__section{font-family:var(--font-heading);font-weight:700;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);
+  padding:1rem .25rem .25rem}
+.sel{font:inherit;font-size:.9375rem;font-weight:600;color:var(--foreground);
+  background:var(--muted);border:1px solid var(--border);border-radius:999px;
+  padding:.375rem 2rem .375rem .875rem;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right .625rem center}
 .sw{flex:0 0 44px;height:26px;border-radius:999px;background:var(--border);
   position:relative;transition:background .2s}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
@@ -239,7 +333,7 @@ svg{display:block}
 
 /* ── toast ────────────────────────────────────────────────────────────── */
 .toast{position:fixed;left:50%;bottom:1.75rem;z-index:90;transform:translate(-50%,1rem);
-  background:oklch(0.19 0 0);color:#fff;font-size:.875rem;font-weight:700;
+  background:var(--c-ink);color:#fff;font-size:.875rem;font-weight:700;
   padding:.625rem 1.125rem;border-radius:999px;opacity:0;transition:.22s;pointer-events:none}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
@@ -250,23 +344,97 @@ svg{display:block}
 @keyframes celebrate{0%,to{transform:scale(1)}40%{transform:scale(1.08)}}
 .animate-celebrate{animation:.5s cubic-bezier(.34,1.56,.64,1) celebrate}
 
-@media(prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important}
-}
+/* Reduced motion is handled per-feature by the JS animation helper (Phase 0.3),
+   not by a global kill-switch. */
+
 </style>
 </head>
 <body>
 
 <div id="app">
 
+  <!-- ══ LEVELS ═════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-levels" style="background:var(--_surface)">
+    <div class="content levels-content">
+      <div class="levels-head">
+        <div id="mark-levels"></div>
+        <h1 class="display">Threads</h1>
+        <p class="small" style="font-weight:700" id="levels-progress"></p>
+      </div>
+      <div class="levels-grid" id="levels-grid"></div>
+    </div>
+  </section>
+
   <!-- ══ START ══════════════════════════════════════════════════════════ -->
   <section class="screen" id="s-start" style="background:var(--_surface);justify-content:center">
     <div class="content" style="gap:1rem;padding-block:3rem">
+      <button class="textbtn" data-go="levels" style="align-self:flex-start">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        All levels
+      </button>
       <div id="mark-lg"></div>
       <h1 class="display">Threads</h1>
+      <p class="eyebrow" id="start-cat" style="color:var(--_detail)"></p>
       <p style="font-size:1rem">Weave five hidden words</p>
-      <button class="btn btn--start btn--block" style="max-width:18rem" data-go="play">Play</button>
+      <button class="btn btn--start btn--block" style="max-width:18rem" id="startPlayBtn">Play</button>
       <p class="small" style="font-weight:700" id="start-date"></p>
+    </div>
+  </section>
+
+  <!-- ══ HOW TO PLAY ════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-how" style="background:var(--background)">
+    <div class="content how-content">
+      <h1 class="h1">How to Play Threads</h1>
+      <p class="lede muted">Weave the five hidden words. Every word uses one block from each column, left to right — and blocks can hold more than one letter.</p>
+
+      <div class="how-grid">
+        <span class="how-block">EL</span>
+        <span class="how-block">EE</span>
+        <span class="how-block how-block--theme">M</span>
+        <span class="how-block">N</span>
+        <span class="how-block">A</span>
+
+        <span class="how-block">M</span>
+        <span class="how-block">EP</span>
+        <span class="how-block">RK</span>
+        <span class="how-block">F</span>
+        <span class="how-block">T</span>
+
+        <span class="how-block how-block--theme">A</span>
+        <span class="how-block how-block--theme">NI</span>
+        <span class="how-block">HA</span>
+        <span class="how-block">A</span>
+        <span class="how-block">FE</span>
+
+        <span class="how-block">P</span>
+        <span class="how-block">IR</span>
+        <span class="how-block">A</span>
+        <span class="how-block how-block--theme">A</span>
+        <span class="how-block how-block--theme">L</span>
+
+        <span class="how-block">G</span>
+        <span class="how-block">A</span>
+        <span class="how-block">N</span>
+        <span class="how-block">D</span>
+        <span class="how-block">T</span>
+      </div>
+
+      <div class="how-steps">
+        <div class="how-step">
+          <span class="how-step__n">1</span>
+          <p class="how-step__t">Tap one block in each column, working left to right, to thread a word together.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-step__n">2</span>
+          <p class="how-step__t">Spell a hidden word correctly and it locks in. Find all five to finish the puzzle.</p>
+        </div>
+        <div class="how-step">
+          <span class="how-step__n">3</span>
+          <p class="how-step__t">One word is the <span class="how-chip">theme word</span> (here, <strong>ANIMAL</strong>, highlighted above). It names the category — the other four words (Elephant, Meerkat, Panda, Giraffe) all belong to it.</p>
+        </div>
+      </div>
+
+      <button class="btn btn--start btn--block" style="max-width:16rem;margin-top:.5rem" data-go="play">PLAY NOW!</button>
     </div>
   </section>
 
@@ -310,9 +478,15 @@ svg{display:block}
 
   <!-- ══ COMPLETED ══════════════════════════════════════════════════════ -->
   <section class="screen" id="s-done">
-    <div class="howtop"><button class="textbtn" data-go="play">Back to puzzle
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button></div>
+    <div class="howtop" style="justify-content:space-between">
+      <button class="textbtn" data-go="levels">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        All levels
+      </button>
+      <button class="textbtn" data-go="play">Back to puzzle
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
     <div class="content" style="gap:.75rem">
       <div id="mark-done"></div>
       <p class="eyebrow" id="done-id"></p>
@@ -363,6 +537,11 @@ svg{display:block}
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-label="Settings">
   <div class="sheet__grip"></div>
+  <button class="row" id="howBtn" style="cursor:pointer">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
+    <span class="row__t">How to play</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted-foreground)"><path d="m9 18 6-6-6-6"/></svg>
+  </button>
   <div class="row">
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2M15.5 8.5a5 5 0 0 1 0 7"/></svg>
     <span class="row__t">Sound</span>
@@ -373,7 +552,38 @@ svg{display:block}
     <span class="row__t">Dark mode</span>
     <button class="sw" id="sw-dark" aria-label="Dark mode"></button>
   </div>
+
+  <p class="sheet__section">Prototype</p>
+  <label class="row" for="set-scheme">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="10" cy="18" r="2.5"/></svg>
+    <span class="row__t">Colour scheme</span>
+    <select class="sel" id="set-scheme">
+      <option value="brand">Brand contrast</option>
+      <option value="rainbow">Rainbow members</option>
+      <option value="ultramarine">Ultramarine members</option>
+    </select>
+  </label>
+  <label class="row" for="set-celebration">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+    <span class="row__t">Theme celebration</span>
+    <select class="sel" id="set-celebration">
+      <option value="stitch">Stitch</option>
+      <option value="wind">Wind</option>
+      <option value="tie">Tie</option>
+    </select>
+  </label>
+  <div class="row">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M15 3v18M4 8h5M4 16h5M15 8h5M15 16h5"/></svg>
+    <span class="row__t">Haptics</span>
+    <button class="sw" id="sw-haptics" aria-label="Haptics"></button>
+  </div>
 </div>
+
+<!-- hidden iOS switch-checkbox for a system haptic tick (Phase 0.7 experiment) -->
+<input type="checkbox" switch id="haptic-tick" aria-hidden="true" tabindex="-1"
+  style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px">
+<label for="haptic-tick" id="haptic-tick-label" aria-hidden="true"
+  style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px"></label>
 
 <div class="toast" id="toast">Copied</div>
 
@@ -387,18 +597,172 @@ svg{display:block}
    ════════════════════════════════════════════════════════════════════════ */
 const PACK = {
   "2026-09-01": {
-    grid: [
-      ["EL","EE","M","N","A"],
-      ["M","EP","RK","F","T"],
-      ["A","NI","HA","A","FE"],
-      ["P","IR","A","A","L"],
-      ["G","A","N","D","T"]
-    ],
-    words: ["ELEPHANT","MEERKAT","ANIMAL","PANDA","GIRAFFE"],
-    category: "Animals",
-    categoryWord: "ANIMAL",
-    members: ["ELEPHANT","MEERKAT","PANDA","GIRAFFE"],
-    emojis: {"ELEPHANT":"🐘","MEERKAT":"🦡","PANDA":"🐼","GIRAFFE":"🦒","ANIMAL":"🐾"}
+    grid: [["B","E","NN","KE","S"],["T","LL","GA","M","NG"],["BA","O","C","I","T"],["H","I","CK","LI","Y"],["CR","O","W","E","ES"]],
+    words: ["BALLGAMES","BOWLING","CRICKET","HOCKEY","TENNIS"],
+    category: "Ball games", categoryWord: "BALLGAMES",
+    members: ["BOWLING","CRICKET","HOCKEY","TENNIS"],
+    emojis: {"BALLGAMES":"🏐","BOWLING":"🎳","CRICKET":"🏏","HOCKEY":"🏑","TENNIS":"🎾"}
+  },
+  "2026-09-02": {
+    grid: [["R","E","N","C","N"],["A","WA","RI","AN","A"],["BO","F","A","I","A"],["M","AL","SW","W","I"],["B","T","N","D","A"]],
+    words: ["BOTSWANA","AFRICA","MALAWI","RWANDA","BENIN"],
+    category: "African countries", categoryWord: "AFRICA",
+    members: ["BENIN","BOTSWANA","MALAWI","RWANDA"],
+    emojis: {"AFRICA":"🌍","BENIN":"🇧🇯","BOTSWANA":"🇧🇼","MALAWI":"🇲🇼","RWANDA":"🇷🇼"}
+  },
+  "2026-09-03": {
+    grid: [["GR","N","C","L","EN"],["N","IN","P","DA","N"],["C","E","S","I","W"],["K","OU","ND","M","E"],["U","A","S","HE","D"]],
+    words: ["GRANDDAD","KINSMEN","COUSIN","NEPHEW","UNCLE"],
+    category: "Male relatives", categoryWord: "KINSMEN",
+    members: ["COUSIN","GRANDDAD","NEPHEW","UNCLE"],
+    emojis: {"KINSMEN":"👪","COUSIN":"🧑","GRANDDAD":"👴","NEPHEW":"👦","UNCLE":"👨"}
+  },
+  "2026-09-04": {
+    grid: [["T","Y","AT","LI","L"],["T","ES","NN","I","ON"],["WR","E","T","I","NG"],["HA","RI","B","HL","S"],["OL","ND","MP","AL","CS"]],
+    words: ["TRIATHLON","WRESTLING","OLYMPICS","HANDBALL","TENNIS"],
+    category: "Olympic sports", categoryWord: "OLYMPICS",
+    members: ["HANDBALL","TENNIS","TRIATHLON","WRESTLING"],
+    emojis: {"OLYMPICS":"🏅","HANDBALL":"🤾","TENNIS":"🎾","TRIATHLON":"🏊","WRESTLING":"🤼"}
+  },
+  "2026-09-05": {
+    grid: [["M","GE","I","R","ES"],["F","O","TA","T","Y"],["VE","E","O","BL","S"],["FR","A","I","D","S"],["D","U","A","T","S"]],
+    words: ["VEGETABLES","FRUITS","FOODS","DAIRY","MEATS"],
+    category: "Food groups", categoryWord: "FOODS",
+    members: ["VEGETABLES","FRUITS","DAIRY","MEATS"],
+    emojis: {"FOODS":"🍽","VEGETABLES":"🥕","FRUITS":"🍎","DAIRY":"🧀","MEATS":"🍖"}
+  },
+  "2026-09-06": {
+    grid: [["R","U","LI","M","E"],["AW","D","Z","ZI","R"],["P","A","G","A","S"],["G","RA","R","TZ","Y"],["E","A","M","D","ER"]],
+    words: ["PULITZER","AWARDS","GRAMMY","RAZZIE","EDGAR"],
+    category: "Awards", categoryWord: "AWARDS",
+    members: ["EDGAR","GRAMMY","PULITZER","RAZZIE"],
+    emojis: {"AWARDS":"🏆","EDGAR":"🔪","GRAMMY":"🎵","PULITZER":"📰","RAZZIE":"🎬"}
+  },
+  "2026-09-07": {
+    grid: [["J","A","D","BA","A"],["I","EN","N","I","I"],["CH","N","I","H","I"],["M","U","M","PU","R"],["D","E","L","A","I"]],
+    words: ["CHENNAI","JAIPUR","MUMBAI","INDIA","DELHI"],
+    category: "Indian cities", categoryWord: "INDIA",
+    members: ["CHENNAI","DELHI","JAIPUR","MUMBAI"],
+    emojis: {"INDIA":"🇮🇳","CHENNAI":"🏙","DELHI":"🏛","JAIPUR":"🏰","MUMBAI":"🌉"}
+  },
+  "2026-09-08": {
+    grid: [["CA","L","A","PO","O"],["CL","PI","TA","I","M"],["H","E","D","LF","RT"],["TA","A","KS","CF","T"],["R","AS","SI","R","M"]],
+    words: ["CAPITALFM","CLASSICFM","TALKSPORT","RADIO","HEART"],
+    category: "Radio stations", categoryWord: "RADIO",
+    members: ["CAPITALFM","CLASSICFM","HEART","TALKSPORT"],
+    emojis: {"RADIO":"📻","CAPITALFM":"🎧","CLASSICFM":"🎻","HEART":"❤️","TALKSPORT":"🗣"}
+  },
+  "2026-09-09": {
+    grid: [["IN","MP","PL","IO","R"],["CO","VE","U","A","NE"],["TE","LE","N","HO","NS"],["A","IR","P","TE","NE"],["JE","TE","NT","GI","NE"]],
+    words: ["INVENTIONS","JETENGINE","TELEPHONE","AIRPLANE","COMPUTER"],
+    category: "Inventions", categoryWord: "INVENTIONS",
+    members: ["AIRPLANE","COMPUTER","JETENGINE","TELEPHONE"],
+    emojis: {"INVENTIONS":"💡","AIRPLANE":"✈️","COMPUTER":"💻","JETENGINE":"🛩","TELEPHONE":"☎️"}
+  },
+  "2026-09-10": {
+    grid: [["L","I","LR","PM","IN"],["A","D","HI","AN","L"],["MI","DS","PT","A","K"],["C","VA","MI","RA","T"],["NA","A","E","U","AN"]],
+    words: ["MIDSHIPMAN","NAVALRANK","ADMIRAL","CAPTAIN","LIEUT"],
+    category: "Naval ranks", categoryWord: "NAVALRANK",
+    members: ["ADMIRAL","CAPTAIN","LIEUT","MIDSHIPMAN"],
+    emojis: {"NAVALRANK":"⚓","ADMIRAL":"🎖","CAPTAIN":"🦫","LIEUT":"🎖","MIDSHIPMAN":"⛵"}
+  },
+  "2026-09-11": {
+    grid: [["DR","RI","E","D","S"],["G","H","G","E","S"],["CL","A","D","G","O"],["C","AU","M","S","E"],["B","U","E","H","TS"]],
+    words: ["DRAUGHTS","BRIDGE","CLUEDO","GAMES","CHESS"],
+    category: "Board & card games", categoryWord: "GAMES",
+    members: ["BRIDGE","CHESS","CLUEDO","DRAUGHTS"],
+    emojis: {"GAMES":"🎲","BRIDGE":"🃏","CHESS":"♟️","CLUEDO":"🔍","DRAUGHTS":"⛂"}
+  },
+  "2026-09-12": {
+    grid: [["ON","U","BE","O","A"],["A","AN","IT","RI","EC"],["M","L","I","B","BA"],["PR","T","A","NC","O"],["Q","OV","E","RT","E"]],
+    words: ["PROVINCE","MANITOBA","ALBERTA","ONTARIO","QUEBEC"],
+    category: "Canadian provinces", categoryWord: "PROVINCE",
+    members: ["ALBERTA","MANITOBA","ONTARIO","QUEBEC"],
+    emojis: {"PROVINCE":"🇨🇦","ALBERTA":"🏔","MANITOBA":"🌾","ONTARIO":"🏙","QUEBEC":"⛪"}
+  },
+  "2026-09-13": {
+    grid: [["BU","WE","R","E","NT"],["FL","SI","L","IS","R"],["NE","O","N","E","R"],["JE","W","SA","GE","SS"],["B","UT","CH","E","T"]],
+    words: ["NEWSAGENT","BUSINESS","BUTCHER","FLORIST","JEWELER"],
+    category: "High-street shops", categoryWord: "BUSINESS",
+    members: ["BUTCHER","FLORIST","JEWELER","NEWSAGENT"],
+    emojis: {"BUSINESS":"🏪","BUTCHER":"🥩","FLORIST":"💐","JEWELER":"💍","NEWSAGENT":"🗞"}
+  },
+  "2026-09-14": {
+    grid: [["RI","HE","N","I","IN"],["LO","G","E","ET","TO"],["LA","DE","OL","IA","AS"],["O","P","AV","GR","O"],["FI","TR","L","R","TA"]],
+    words: ["LATRAVIATA","RIGOLETTO","LOHENGRIN","FIDELIO","OPERAS"],
+    category: "Operas", categoryWord: "OPERAS",
+    members: ["RIGOLETTO","LOHENGRIN","FIDELIO","LATRAVIATA"],
+    emojis: {"OPERAS":"🎭","RIGOLETTO":"🎼","LOHENGRIN":"🦢","FIDELIO":"🗝","LATRAVIATA":"🌹"}
+  },
+  "2026-09-15": {
+    grid: [["MA","I","O","LI","N"],["AN","R","MA","I","T"],["T","NG","MO","L","CH"],["PA","ST","P","SE","S"],["O","A","R","I","R"]],
+    words: ["MARMOSET","PANGOLIN","ANIMALS","OSTRICH","TAPIR"],
+    category: "Animals", categoryWord: "ANIMALS",
+    members: ["MARMOSET","OSTRICH","PANGOLIN","TAPIR"],
+    emojis: {"ANIMALS":"🐾","MARMOSET":"🐒","OSTRICH":"🦩","PANGOLIN":"🦎","TAPIR":"🐇"}
+  },
+  "2026-09-16": {
+    grid: [["C","L","OG","TI","E"],["LI","G","O","E","L"],["F","ES","H","E","N"],["FR","L","N","L","D"],["HA","AN","D","O","NG"]],
+    words: ["LIGHTING","FRESNEL","HALOGEN","CANDLE","FLOOD"],
+    category: "Lighting", categoryWord: "LIGHTING",
+    members: ["CANDLE","FLOOD","FRESNEL","HALOGEN"],
+    emojis: {"LIGHTING":"💡","CANDLE":"🕯","FLOOD":"🔦","FRESNEL":"🏮","HALOGEN":"💡"}
+  },
+  "2026-09-17": {
+    grid: [["AN","S","TR","SI","S"],["LA","ER","DM","AS","CA"],["AU","TA","A","AL","A"],["AM","R","RC","A","IA"],["EU","N","IC","TI","S"]],
+    words: ["ANTARCTICA","AUSTRALIA","LANDMASS","AMERICAS","EURASIA"],
+    category: "Continents", categoryWord: "LANDMASS",
+    members: ["AMERICAS","ANTARCTICA","AUSTRALIA","EURASIA"],
+    emojis: {"LANDMASS":"🗺","AMERICAS":"🌎","ANTARCTICA":"🧊","AUSTRALIA":"🇦🇺","EURASIA":"🌏"}
+  },
+  "2026-09-18": {
+    grid: [["TI","US","I","AL","ED"],["M","O","TB","T","L"],["FO","C","C","A","E"],["C","ON","KE","ER","L"],["C","RU","IC","S","T"]],
+    words: ["TICKETED","FOOTBALL","CONCERT","MUSICAL","CRUISE"],
+    category: "Ticketed events", categoryWord: "TICKETED",
+    members: ["CONCERT","CRUISE","FOOTBALL","MUSICAL"],
+    emojis: {"TICKETED":"🎫","CONCERT":"🎤","CRUISE":"🛳","FOOTBALL":"⚽","MUSICAL":"🎭"}
+  },
+  "2026-09-19": {
+    grid: [["JE","C","MO","S","ON"],["E","E","OU","ES","SE"],["SA","MO","N","I","SY"],["R","D","T","A","S"],["E","AL","ST","R","Y"]],
+    words: ["JEALOUSY","EMOTION","ECSTASY","REMORSE","SADNESS"],
+    category: "Emotions", categoryWord: "EMOTION",
+    members: ["ECSTASY","JEALOUSY","REMORSE","SADNESS"],
+    emojis: {"EMOTION":"😌","ECSTASY":"🤩","JEALOUSY":"😬","REMORSE":"😔","SADNESS":"😢"}
+  },
+  "2026-09-20": {
+    grid: [["LO","O","N","ER","N"],["L","R","DB","UA","ON"],["CL","N","J","O","RA"],["CA","E","V","YR","VA"],["DO","SA","OP","AT","S"]],
+    words: ["CLEOPATRA","LORDBYRON","CASANOVA","DONJUAN","LOVERS"],
+    category: "Famous lovers", categoryWord: "LOVERS",
+    members: ["CASANOVA","CLEOPATRA","DONJUAN","LORDBYRON"],
+    emojis: {"LOVERS":"💘","CASANOVA":"🌹","CLEOPATRA":"👑","DONJUAN":"🎻","LORDBYRON":"🖋"}
+  },
+  "2026-09-21": {
+    grid: [["BU","E","ER","I","S"],["IN","I","V","F","L"],["BU","M","C","EB","T"],["CR","SE","CK","T","LY"],["WE","TT","BL","E","EE"]],
+    words: ["BUMBLEBEE","BUTTERFLY","INSECTS","CRICKET","WEEVIL"],
+    category: "Insects", categoryWord: "INSECTS",
+    members: ["BUMBLEBEE","BUTTERFLY","CRICKET","WEEVIL"],
+    emojis: {"INSECTS":"🐛","BUMBLEBEE":"🐝","BUTTERFLY":"🦋","CRICKET":"🦗","WEEVIL":"🪲"}
+  },
+  "2026-09-22": {
+    grid: [["CI","ER","P","L","E"],["AM","T","A","Y","ST"],["EM","O","TO","A","D"],["GE","MS","R","N","E"],["T","E","TH","IN","Z"]],
+    words: ["GEMSTONE","AMETHYST","CITRINE","EMERALD","TOPAZ"],
+    category: "Gemstones", categoryWord: "GEMSTONE",
+    members: ["AMETHYST","CITRINE","EMERALD","TOPAZ"],
+    emojis: {"GEMSTONE":"💎","AMETHYST":"🔮","CITRINE":"🟡","EMERALD":"🟢","TOPAZ":"🔶"}
+  },
+  "2026-09-23": {
+    grid: [["O","A","MA","L","E"],["GO","RA","NG","G","UR"],["SI","A","M","N","A"],["P","RI","N","AT","AN"],["L","R","IL","UT","G"]],
+    words: ["ORANGUTAN","PRIMATE","GORILLA","SIAMANG","LANGUR"],
+    category: "Primates", categoryWord: "PRIMATE",
+    members: ["GORILLA","LANGUR","ORANGUTAN","SIAMANG"],
+    emojis: {"PRIMATE":"🐒","GORILLA":"🦍","LANGUR":"🐒","ORANGUTAN":"🦧","SIAMANG":"🐒"}
+  },
+  "2026-09-24": {
+    grid: [["AC","RI","PI","I","N"],["B","T","OM","R","ID"],["E","HA","T","OM","SH"],["OT","L","YR","A","E"],["HO","M","EM","EN","AN"]],
+    words: ["ACHAEMENID","HOLYROMAN","BRITISH","OTTOMAN","EMPIRE"],
+    category: "Empires", categoryWord: "EMPIRE",
+    members: ["BRITISH","OTTOMAN","HOLYROMAN","ACHAEMENID"],
+    emojis: {"EMPIRE":"👑","BRITISH":"🇬🇧","OTTOMAN":"🕌","HOLYROMAN":"✝","ACHAEMENID":"🏺"}
   }
 };
 
@@ -414,17 +778,93 @@ const BANDS = [
 const DATES = Object.keys(PACK).sort();
 const TODAY = DATES[DATES.length - 1];
 
-/* Word-row colors: 5 distinct hues for found words */
-const WORD_COLORS = [
-  {bg:"oklch(0.82 0.12 75)",  text:"oklch(0.2 0.05 75)"},   // amber
-  {bg:"oklch(0.80 0.12 175)", text:"oklch(0.15 0.05 175)"},  // teal
-  {bg:"oklch(0.82 0.11 145)", text:"oklch(0.2 0.05 145)"},   // green
-  {bg:"oklch(0.82 0.11 25)",  text:"oklch(0.2 0.05 25)"},    // coral
-  {bg:"oklch(0.80 0.11 280)", text:"oklch(0.2 0.05 280)"},   // purple
-];
+/* ── progress persistence (started / completed per level) ──────────────── */
+const PROGRESS_KEY = "threads-progress";
+function loadProgress() {
+  let saved = { started: [], completed: [] };
+  try { saved = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || saved; } catch (e) {}
+  S.started = new Set(saved.started || []);
+  S.solved = new Set(saved.completed || []);
+}
+function saveProgress() {
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+    started: [...S.started], completed: [...S.solved]
+  }));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SETTINGS (Phase 0.6) — persisted under "threads-settings"
+   ════════════════════════════════════════════════════════════════════════ */
+const SETTINGS_KEY = "threads-settings";
+const SETTINGS_DEFAULTS = {
+  scheme: "brand",          // brand | rainbow | ultramarine
+  celebration: "stitch",    // stitch | wind | tie
+  haptics: true,
+  dark: false
+};
+function loadSettings() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (e) {}
+  S.settings = Object.assign({}, SETTINGS_DEFAULTS, saved);
+}
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ANIMATION HELPER (Phase 0.2) — promise-based, WAAPI
+   ════════════════════════════════════════════════════════════════════════ */
+const prefersReducedMotion = () =>
+  window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* anim(el, keyframes, options) -> Promise resolving when the animation finishes.
+   options.reduced: optional keyframes/options used when reduced motion is on
+   (default: a short opacity settle, no movement). */
+function anim(element, keyframes, options = {}) {
+  if (!element) return Promise.resolve();
+  const opts = typeof options === "number" ? { duration: options } : options;
+  if (prefersReducedMotion()) {
+    if (opts.reduced === null) return Promise.resolve();       // explicit: skip entirely
+    const rk = opts.reduced || [{ opacity: 0.6 }, { opacity: 1 }];
+    const a = element.animate(rk, { duration: 120, fill: "none" });
+    return a.finished.catch(() => {});
+  }
+  const { reduced, ...waapi } = opts;
+  const a = element.animate(keyframes, Object.assign({ duration: 300, easing: "ease", fill: "none" }, waapi));
+  return a.finished.catch(() => {});
+}
+/* run animations in sequence */
+async function seq(...fns) { for (const fn of fns) await fn(); }
+/* stagger the same animation across a list of elements */
+function stagger(elements, delayEach, make) {
+  return Promise.all([...elements].map((e, i) =>
+    new Promise(res => setTimeout(() => make(e, i).then(res), prefersReducedMotion() ? 0 : i * delayEach))));
+}
+/* plain promise delay */
+const wait = ms => new Promise(res => setTimeout(res, prefersReducedMotion() ? 0 : ms));
+
+/* ════════════════════════════════════════════════════════════════════════
+   HAPTICS HELPER (Phase 0.7)
+   ════════════════════════════════════════════════════════════════════════ */
+const HAPTIC_PATTERNS = {
+  select: 8, deselect: 5, found: [12, 40, 12],
+  wrong: [25, 40, 25, 40, 25], hint: 15, theme: [10, 30, 10, 30, 40]
+};
+function haptic(kind) {
+  if (!S.settings || !S.settings.haptics) return;
+  const pattern = HAPTIC_PATTERNS[kind];
+  if (pattern == null) return;
+  // Android WebViews: Vibration API
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); return; } catch (e) {} }
+  // iOS WebKit experiment: toggle a hidden switch-checkbox to coax a system tick.
+  try {
+    const label = document.getElementById("haptic-tick-label");
+    if (label && typeof label.click === "function") label.click();
+  } catch (e) { /* fail silently */ }
+}
 
 const S = {
-  date: TODAY,
+  date: DATES[0],
   columns: [],          // columns[c] = [{text, origRow, id}]
   selection: [],        // [{col, idx, block}]
   found: [],            // found word strings
@@ -433,8 +873,9 @@ const S = {
   seconds: 0,
   running: false,
   won: false,
-  solved: new Set(),
-  dark: false,
+  solved: new Set(),    // completed levels
+  started: new Set(),   // opened levels
+  settings: Object.assign({}, SETTINGS_DEFAULTS),
   sound: true,
   checking: false       // debounce word check
 };
@@ -443,6 +884,7 @@ const $ = s => document.querySelector(s);
 const el = (t, cls, html) => { const e = document.createElement(t);
   if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 function puzzle() { return PACK[S.date]; }
+
 
 /* ════════════════════════════════════════════════════════════════════════
    GRID STATE
@@ -470,51 +912,75 @@ function shuffleColumns() {
     }
   }
   clearSelection();
-  renderGrid(true);
+  renderGrid({ flip: true });
   drawThread();
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   RENDER — found words at top of grid, active blocks below
+   RENDER — keyed reconciliation (Phase 0.1)
+   Nodes are created once and reused; found rows keyed by word|col, active
+   blocks keyed by id. Position changes animate with FLIP.
    ════════════════════════════════════════════════════════════════════════ */
-function renderGrid(settle, foundPop) {
+const nodeMap = new Map();    // active block id -> element
+const foundMap = new Map();   // "word|col" -> element
+let dividerEl = null;
+
+function renderGrid(opts = {}) {
+  const { settle = false, foundPop = false, flip = false } = opts;
   const g = $("#tgrid");
-  g.innerHTML = "";
+  const p = puzzle();
+
+  /* FLIP: capture first positions of current active nodes */
+  let first = null;
+  if (flip && !prefersReducedMotion()) {
+    first = new Map();
+    for (const [id, node] of nodeMap) first.set(id, node.getBoundingClientRect());
+  }
 
   const totalFoundRows = S.foundBlocks.length;
   const activeRows = Math.max(...S.columns.map(c => c.length), 0);
-  const totalRows = totalFoundRows + (totalFoundRows > 0 && activeRows > 0 ? 1 : 0) + activeRows;
-  if (totalRows === 0) return;
-
   let rowCursor = 1;
 
-  /* ── found word rows (colored, at the top) ─────────────────────────── */
+  const seenFound = new Set();
+  const seenActive = new Set();
+
+  /* ── found word rows (colored, keyed, at the top) ──────────────────── */
   for (let fi = 0; fi < S.foundBlocks.length; fi++) {
     const fw = S.foundBlocks[fi];
-    const color = WORD_COLORS[fw.colorIdx % WORD_COLORS.length];
+    const isTheme = fw.word === p.categoryWord;
     for (const fb of fw.blocks) {
-      const div = document.createElement("div");
-      div.className = "block block--found";
-      div.textContent = fb.block.text;
-      div.style.gridColumn = fb.col + 1;
-      div.style.gridRow = rowCursor;
-      div.style.background = color.bg;
-      div.style.color = color.text;
-      div.style.borderColor = "transparent";
-      div.style.boxShadow = "none";
-      if (foundPop && fi === S.foundBlocks.length - 1) div.classList.add("block--found-pop");
-      g.appendChild(div);
+      const key = fw.word + "|" + fb.col;
+      seenFound.add(key);
+      let node = foundMap.get(key);
+      const fresh = !node;
+      if (fresh) {
+        node = document.createElement("div");
+        node.textContent = fb.block.text;
+        foundMap.set(key, node);
+        g.appendChild(node);
+      }
+      node.className = "block block--found found--c" + (fw.colorIdx % 5)
+        + (isTheme ? " found--theme" : " found--member");
+      node.style.gridColumn = fb.col + 1;
+      node.style.gridRow = rowCursor;
+      if (fresh && foundPop && fi === S.foundBlocks.length - 1)
+        node.classList.add("block--found-pop");
     }
     rowCursor++;
   }
 
   /* ── divider between found and active ──────────────────────────────── */
   if (totalFoundRows > 0 && activeRows > 0) {
-    const divider = document.createElement("div");
-    divider.className = "grid-divider";
-    divider.style.gridRow = rowCursor;
-    g.appendChild(divider);
+    if (!dividerEl) {
+      dividerEl = document.createElement("div");
+      dividerEl.className = "grid-divider";
+      g.appendChild(dividerEl);
+    }
+    dividerEl.style.display = "";
+    dividerEl.style.gridRow = rowCursor;
     rowCursor++;
+  } else if (dividerEl) {
+    dividerEl.style.display = "none";
   }
 
   /* ── active blocks ─────────────────────────────────────────────────── */
@@ -522,25 +988,66 @@ function renderGrid(settle, foundPop) {
   for (let c = 0; c < 5; c++) {
     for (let i = 0; i < S.columns[c].length; i++) {
       const block = S.columns[c][i];
-      const div = document.createElement("div");
-      div.className = "block";
-      div.dataset.col = c;
-      div.dataset.idx = i;
-      div.dataset.id = block.id;
-      div.textContent = block.text;
-      div.style.gridColumn = c + 1;
-      div.style.gridRow = rowCursor + i;
-
+      seenActive.add(block.id);
+      let node = nodeMap.get(block.id);
+      if (!node) {
+        node = document.createElement("div");
+        node.dataset.id = block.id;
+        node.textContent = block.text;
+        nodeMap.set(block.id, node);
+        g.appendChild(node);
+        if (settle) node.classList.add("block--settle");
+      }
+      node.dataset.col = c;
+      node.dataset.idx = i;
+      let cls = "block";
       const sel = S.selection.find(s => s.col === c);
-      if (sel && sel.block.id === block.id) div.classList.add("block--selected");
+      if (sel && sel.block.id === block.id) cls += " block--selected";
       else if (!S.won && !S.checking && c === nextCol && nextCol < 5)
-        div.classList.add("block--available");
+        cls += " block--available";
+      node.className = cls;
+      node.style.gridColumn = c + 1;
+      node.style.gridRow = rowCursor + i;
+    }
+  }
 
-      if (settle) div.classList.add("block--settle");
-      g.appendChild(div);
+  /* ── remove stale nodes (skip ones still playing an exit animation) ── */
+  for (const [key, node] of foundMap) {
+    if (!seenFound.has(key)) { node.remove(); foundMap.delete(key); }
+  }
+  for (const [id, node] of nodeMap) {
+    if (!seenActive.has(id) && !node.classList.contains("block--removing")) {
+      node.remove(); nodeMap.delete(id);
+    }
+  }
+
+  /* ── FLIP: animate position deltas ─────────────────────────────────── */
+  if (first) {
+    for (const [id, node] of nodeMap) {
+      const prev = first.get(id);
+      if (!prev) continue;
+      const now = node.getBoundingClientRect();
+      const dx = prev.left - now.left, dy = prev.top - now.top;
+      if (dx || dy) {
+        node.animate(
+          [{ transform: "translate(" + dx + "px," + dy + "px)" },
+           { transform: "translate(0,0)" }],
+          { duration: 250, easing: "cubic-bezier(.34,1.56,.64,1)" }
+        );
+      }
     }
   }
 }
+
+/* clear all keyed nodes (used on level reset) */
+function clearGridNodes() {
+  for (const [, node] of nodeMap) node.remove();
+  for (const [, node] of foundMap) node.remove();
+  nodeMap.clear(); foundMap.clear();
+  if (dividerEl) { dividerEl.remove(); dividerEl = null; }
+  $("#tgrid").innerHTML = "";
+}
+
 
 function renderWordPreview() {
   const wp = $("#word-preview");
@@ -613,12 +1120,15 @@ $("#tgrid").addEventListener("click", e => {
   if (existingIdx >= 0) {
     if (S.selection[existingIdx].block.id === block.id) {
       S.selection = S.selection.slice(0, existingIdx);
+      haptic("deselect");
     } else {
       S.selection = S.selection.slice(0, existingIdx);
       S.selection.push({ col, idx, block });
+      haptic("select");
     }
   } else if (col === nextCol) {
     S.selection.push({ col, idx, block });
+    haptic("select");
   } else {
     return;
   }
@@ -631,7 +1141,7 @@ $("#tgrid").addEventListener("click", e => {
   if (S.selection.length === 5) {
     S.checking = true;
     renderGrid(); // re-render to remove "available" highlights
-    setTimeout(() => checkAndHandleWord(), 400);
+    (async () => { await wait(400); await checkAndHandleWord(); })();
   }
 });
 
@@ -641,20 +1151,21 @@ $("#shuffleBtn").onclick = () => shuffleColumns();
 function clearSelection() { S.selection = []; }
 
 /* ════════════════════════════════════════════════════════════════════════
-   WORD CHECK
+   WORD CHECK — async sequences via the animation helper (Phase 0.2)
+   S.checking blocks input for the whole sequence.
    ════════════════════════════════════════════════════════════════════════ */
-function checkAndHandleWord() {
+async function checkAndHandleWord() {
   const word = S.selection.map(s => s.block.text).join("");
   const p = puzzle();
 
   if (p.words.includes(word) && !S.found.includes(word)) {
-    handleValidWord(word);
+    await handleValidWord(word);
   } else {
-    handleInvalidWord();
+    await handleInvalidWord();
   }
 }
 
-function handleValidWord(word) {
+async function handleValidWord(word) {
   const p = puzzle();
   S.found.push(word);
   drawThread("valid");
@@ -666,69 +1177,93 @@ function handleValidWord(word) {
     colorIdx: S.foundBlocks.length
   };
 
-  // Animate blocks out briefly
+  // Animate the selected blocks out (WAAPI, reduced-motion = fade)
+  await Promise.all(S.selection.map(s => {
+    const node = nodeMap.get(s.block.id);
+    return anim(node, [
+      { transform: "scale(1)", opacity: 1, offset: 0 },
+      { transform: "scale(1.1) translateY(-4px)", opacity: 0.9, offset: 0.5 },
+      { transform: "scale(.7) translateY(-20px)", opacity: 0, offset: 1 }
+    ], { duration: 350, easing: "ease-in", fill: "forwards",
+         reduced: [{ opacity: 1 }, { opacity: 0 }] });
+  }));
+
+  // Remove the consumed nodes and commit to state
   for (const s of S.selection) {
-    const blockEl = document.querySelector('[data-id="' + s.block.id + '"]');
-    if (blockEl) blockEl.classList.add("block--removing");
+    const node = nodeMap.get(s.block.id);
+    if (node) { node.remove(); nodeMap.delete(s.block.id); }
+    S.removed.add(s.block.id);
+  }
+  S.foundBlocks.push(foundEntry);
+  S.selection = [];
+  initGrid();
+  renderGrid({ foundPop: true, flip: true }); // remaining blocks fall up (FLIP)
+  renderWordPreview();
+  updateHud();
+  drawThread();
+  haptic("found");
+
+  // Category reveal?
+  if (word === p.categoryWord) {
+    await wait(400);
+    showCategoryReveal();
+    haptic("theme");
   }
 
-  setTimeout(() => {
-    // Remove from active columns
-    for (const s of S.selection) S.removed.add(s.block.id);
-    S.foundBlocks.push(foundEntry);
-    S.selection = [];
-    S.checking = false;
-    initGrid();
-    renderGrid(true, true);
-    renderWordPreview();
-    updateHud();
-    drawThread();
+  // Completion?
+  if (S.found.length === p.words.length && !S.won) {
+    await wait(800);
+    finish();
+  }
 
-    // Category reveal?
-    if (word === p.categoryWord) {
-      setTimeout(() => showCategoryReveal(), 400);
-    }
-
-    // Completion?
-    if (S.found.length === p.words.length && !S.won) {
-      setTimeout(() => finish(), 800);
-    }
-  }, 400);
+  S.checking = false;
 }
 
-function handleInvalidWord() {
+async function handleInvalidWord() {
   drawThread("invalid");
-  for (const s of S.selection) {
-    const blockEl = document.querySelector('[data-id="' + s.block.id + '"]');
-    if (blockEl) {
-      blockEl.classList.add("animate-shake");
-    }
-  }
+  haptic("wrong");
   toast("Not a valid word");
 
-  setTimeout(() => {
-    S.selection = [];
-    S.checking = false;
-    renderGrid();
-    renderWordPreview();
-    drawThread();
-  }, 650);
+  await Promise.all(S.selection.map(s => {
+    const node = nodeMap.get(s.block.id);
+    return anim(node, [
+      { transform: "translateX(0)", offset: 0 },
+      { transform: "translateX(-2px)", offset: 0.1 },
+      { transform: "translateX(2px)", offset: 0.2 },
+      { transform: "translateX(-2px)", offset: 0.3 },
+      { transform: "translateX(2px)", offset: 0.4 },
+      { transform: "translateX(-2px)", offset: 0.5 },
+      { transform: "translateX(2px)", offset: 0.6 },
+      { transform: "translateX(-2px)", offset: 0.7 },
+      { transform: "translateX(2px)", offset: 0.8 },
+      { transform: "translateX(-2px)", offset: 0.9 },
+      { transform: "translateX(0)", offset: 1 }
+    ], { duration: 600, reduced: [{ opacity: 1 }, { opacity: 0.5 }, { opacity: 1 }] });
+  }));
+
+  S.selection = [];
+  S.checking = false;
+  renderGrid();
+  renderWordPreview();
+  drawThread();
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   CATEGORY REVEAL — fun animation when ANIMAL is found
+   CATEGORY REVEAL — golden shimmer across found rows
    ════════════════════════════════════════════════════════════════════════ */
 function showCategoryReveal() {
-  /* shimmer wave across all found-row blocks */
-  const foundBlocks = document.querySelectorAll(".block--found");
-  foundBlocks.forEach((block, i) => {
-    block.style.setProperty("--d", (i * 0.07) + "s");
-    block.classList.remove("block--shimmer");
-    void block.offsetWidth;
-    block.classList.add("block--shimmer");
-  });
-  toast("They're all animals!");
+  if (!prefersReducedMotion()) {
+    const foundBlocks = document.querySelectorAll(".block--found");
+    foundBlocks.forEach((block, i) => {
+      block.style.setProperty("--d", (i * 0.07) + "s");
+      block.classList.remove("block--shimmer");
+      void block.offsetWidth;
+      block.classList.add("block--shimmer");
+    });
+  }
+  toast("They're all " + puzzle().category.toLowerCase() + "!");
 }
+
 
 /* ════════════════════════════════════════════════════════════════════════
    CLOCK
@@ -753,6 +1288,7 @@ function finish() {
   S.won = true;
   stopClock();
   S.solved.add(S.date);
+  saveProgress();
   const total = S.seconds;
   const ratio = total / PAR_SECONDS;
   $("#done-time").textContent = mmss(total);
@@ -784,11 +1320,13 @@ function go(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
   $("#s-" + name).classList.add("on");
   document.body.style.background =
-    name === "start" ? "var(--_surface)"
+    name === "start" || name === "levels" ? "var(--_surface)"
     : name === "done" ? "var(--root-tint)"
     : "var(--background)";
   closeSheet();
+  if (name === "levels") renderLevels();
   if (name === "play") {
+    if (!S.started.has(S.date)) { S.started.add(S.date); saveProgress(); }
     renderGrid();
     renderWordPreview();
     updateHud();
@@ -799,16 +1337,80 @@ function go(name) {
 document.querySelectorAll("[data-go]").forEach(b =>
   b.onclick = () => go(b.dataset.go));
 
+/* ── level select ──────────────────────────────────────────────────────── */
+function selectLevel(date) {
+  S.date = date;
+  resetRound();
+  $("#start-cat").textContent = "Level " + (DATES.indexOf(date) + 1);
+  $("#start-date").textContent = S.solved.has(date) ? "Completed \u2713"
+    : S.started.has(date) ? "In progress" : "5 hidden words";
+  go("start");
+}
+
+function renderLevels() {
+  const grid = $("#levels-grid");
+  grid.innerHTML = "";
+  const doneCount = DATES.filter(d => S.solved.has(d)).length;
+  $("#levels-progress").textContent = doneCount + " of " + DATES.length + " levels complete";
+  DATES.forEach((date, i) => {
+    const done = S.solved.has(date);
+    const started = S.started.has(date) && !done;
+    const card = el("button", "lvl" + (done ? " lvl--done" : ""));
+    let badge, badgeCls;
+    if (done) { badge = "Completed"; badgeCls = "done"; }
+    else if (started) { badge = "In progress"; badgeCls = "started"; }
+    else { badge = "New"; badgeCls = "new"; }
+    card.innerHTML =
+      '<span class="lvl__cat">Level ' + (i + 1) + '</span>' +
+      '<span class="lvl__badge lvl__badge--' + badgeCls + '">' + badge + '</span>';
+    card.onclick = () => selectLevel(date);
+    grid.appendChild(card);
+  });
+}
+
 const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
 const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
 $("#menuBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
 
-$("#sw-dark").onclick = e => {
-  S.dark = !S.dark;
-  document.documentElement.classList.toggle("dark", S.dark);
-  e.currentTarget.classList.toggle("sw--on", S.dark);
+/* how to play — auto-show on first visit only, plus menu access */
+const SEEN_HOW = "threads-how-seen";
+$("#startPlayBtn").onclick = () => {
+  if (!localStorage.getItem(SEEN_HOW)) {
+    localStorage.setItem(SEEN_HOW, "1");
+    go("how");
+  } else {
+    go("play");
+  }
 };
+$("#howBtn").onclick = () => { closeSheet(); go("how"); };
+
+/* ── settings controls (Phase 0.6) — persisted via saveSettings() ──────── */
+function applySettings() {
+  document.documentElement.classList.toggle("dark", S.settings.dark);
+  document.documentElement.dataset.scheme = S.settings.scheme;
+  $("#sw-dark").classList.toggle("sw--on", S.settings.dark);
+  $("#sw-haptics").classList.toggle("sw--on", S.settings.haptics);
+  const sc = $("#set-scheme"); if (sc) sc.value = S.settings.scheme;
+  const ce = $("#set-celebration"); if (ce) ce.value = S.settings.celebration;
+}
+
+$("#sw-dark").onclick = () => {
+  S.settings.dark = !S.settings.dark;
+  saveSettings(); applySettings();
+};
+$("#sw-haptics").onclick = () => {
+  S.settings.haptics = !S.settings.haptics;
+  saveSettings(); applySettings();
+  if (S.settings.haptics) haptic("select");
+};
+$("#set-scheme").onchange = e => {
+  S.settings.scheme = e.target.value; saveSettings(); applySettings();
+};
+$("#set-celebration").onchange = e => {
+  S.settings.celebration = e.target.value; saveSettings();
+};
+
 $("#sw-sound").onclick = e => {
   S.sound = !S.sound;
   e.currentTarget.classList.toggle("sw--on", S.sound);
@@ -819,6 +1421,7 @@ function resetRound() {
   S.selection = []; S.found = []; S.foundBlocks = []; S.removed.clear();
   S.seconds = 0; S.won = false; S.checking = false;
   stopClock(); $("#timer").textContent = "00:00";
+  clearGridNodes();
   initGrid();
 }
 
@@ -866,14 +1469,30 @@ function toast(msg) {
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1600);
 }
 
+/* ── thread redraw on resize / rotate (Phase 0.4) ──────────────────────── */
+(function observeThreadResize() {
+  const wrap = document.querySelector(".grid-wrap");
+  if (wrap && "ResizeObserver" in window) {
+    const ro = new ResizeObserver(() => {
+      if (S.selection.length) drawThread();
+    });
+    ro.observe(wrap);
+  }
+  window.addEventListener("orientationchange", () => {
+    requestAnimationFrame(() => { if (S.selection.length) drawThread(); });
+  });
+})();
+
 /* ── boot ──────────────────────────────────────────────────────────────── */
 $("#mark-lg").innerHTML = MARK(76);
 $("#mark-sm").innerHTML = MARK(32);
 $("#mark-done").innerHTML = MARK(52);
-$("#start-date").textContent = (() => { const d = new Date(TODAY + "T00:00:00Z");
-  return DAYS[d.getUTCDay()] + ", " + FULLM[d.getUTCMonth()] + " " + ord(d.getUTCDate()) + ", " + d.getUTCFullYear(); })();
+$("#mark-levels").innerHTML = MARK(64);
+loadSettings();
+applySettings();
+loadProgress();
 initGrid();
-go("start");
+go("levels");
 </script>
 </body>
 </html>
