@@ -49,6 +49,12 @@
   --_on-accent:var(--game-threads-on-accent);
 }
 :where(:root){
+  /* Phase 1b: near-white page, pale Orange-50 band behind the HUD only */
+  --nav-band:var(--or-50);
+  --root-tint:oklch(0.985 0 0);
+}
+:root.dark{
+  /* dark mode unchanged — restore the original tinted derivations */
   --nav-band:color-mix(in oklch,var(--_surface) 50%,transparent);
   --root-tint:color-mix(in srgb,var(--_surface) 30%,var(--background));
 }
@@ -62,17 +68,14 @@
   --block-border:oklch(0.88 0 0);
   --block-border-strong:oklch(0.72 0 0);
   --block-shadow:oklch(0.78 0 0);
-  --wp-empty-bg:oklch(0.93 0 0);
+  /* Phase 2: tray panel + recessed sockets */
+  --tray-bg:oklch(0.93 0 0);
+  --slot-bg:oklch(0.89 0 0);
+  --slot-inset:oklch(0 0 0/.16);
   /* thread feedback */
   --thread-valid:oklch(0.55 0.18 145);
   /* category reveal glow */
   --shimmer-gold:oklch(0.85 0.14 80);
-  /* found-word row hues (were WORD_COLORS in JS) */
-  --word-c0-bg:oklch(0.82 0.12 75);  --word-c0-text:oklch(0.2 0.05 75);
-  --word-c1-bg:oklch(0.80 0.12 175); --word-c1-text:oklch(0.15 0.05 175);
-  --word-c2-bg:oklch(0.82 0.11 145); --word-c2-text:oklch(0.2 0.05 145);
-  --word-c3-bg:oklch(0.82 0.11 25);  --word-c3-text:oklch(0.2 0.05 25);
-  --word-c4-bg:oklch(0.80 0.11 280); --word-c4-text:oklch(0.2 0.05 280);
 }
 :root.dark{
   /* dark-mode block overrides */
@@ -80,7 +83,74 @@
   --block-border:oklch(0.32 0 0);
   --block-border-strong:oklch(0.45 0 0);
   --block-shadow:oklch(0.18 0 0);
-  --wp-empty-bg:oklch(0.28 0 0);
+  --tray-bg:oklch(0.22 0 0);
+  --slot-bg:oklch(0.16 0 0);
+  --slot-inset:oklch(0 0 0/.45);
+}
+
+/* ── Phase 1: brand palette ───────────────────────────────────────────── */
+:root{
+  --um-900:#12102E;--um-800:#24205C;--um-700:#352F8A;--um-600:#473FB8;--um-500:#594FE6;
+  --um-400:#7A72EB;--um-300:#9B95F0;--um-200:#BDB9F5;--um-100:#DEDCFA;--um-50:#EEEDFC;
+  --or-900:#31220C;--or-800:#614518;--or-700:#926725;--or-600:#C28A31;--or-500:#F3AC3D;
+  --or-400:#F5BD64;--or-300:#F8CD8B;--or-200:#FADEB1;--or-100:#FDEED8;--or-50:#FEF7EC;
+  --gr-900:#00291F;--gr-800:#00523F;--gr-700:#007A5E;--gr-600:#00A37E;--gr-500:#00CC9D;
+  --gr-400:#33D6B1;--gr-300:#66E0C4;--gr-200:#99EBD8;--gr-100:#CCF5EB;--gr-50:#E5FAF5;
+  --pu-900:#111433;--pu-800:#222866;--pu-700:#343D99;--pu-600:#4551CC;--pu-500:#5665FF;
+  --pu-400:#7884FF;--pu-300:#9AA3FF;--pu-200:#BBC1FF;--pu-100:#DDE0FF;--pu-50:#EEF0FF;
+  --bl-900:#0B2427;--bl-800:#16484E;--bl-700:#216B76;--bl-600:#2C8F9D;--bl-500:#37B3C4;
+  --bl-400:#5FC2D0;--bl-300:#87D1DC;--bl-200:#AFE1E7;--bl-100:#D7F0F3;--bl-50:#EBF7F9;
+  --pk-900:#2A0A19;--pk-800:#541332;--pk-700:#7F1D4B;--pk-600:#A92664;--pk-500:#D3307D;
+  --pk-400:#DC5997;--pk-300:#E583B1;--pk-200:#EDACCB;--pk-100:#F6D6E5;--pk-50:#FBEAF2;
+
+  /* near-black used for selected tiles + thread (Phase 1) */
+  --ink-900:#242424;
+
+  /* spool glyph (bobbin) used as the persistent theme-row marker */
+  --spool-glyph:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 3h12M6 21h12M7 3v18M17 3v18'/><path d='M7 8h10M7 16h10'/><path d='M9 10.5l6 3M15 10.5l-6 3'/></svg>");
+
+  /* tutorial prompt pills (same in every scheme; used in Phase 7) */
+  --prompt-pill:var(--or-500);
+
+  /* ── semantic scheme tokens (default = A. Brand contrast, light) ─────── */
+  --found-member-bg:var(--or-100);   --found-member-fg:var(--or-800);
+  --found-theme-bg:var(--um-500);    --found-theme-fg:#fff;
+  --found-theme-ring:var(--um-700);
+  --tile-sel-bg:var(--ink-900);      --tile-sel-fg:#fff;
+  --thread-stroke:var(--ink-900);
+}
+
+/* B. Rainbow members — member colour by discovery order; theme = Orange 500 */
+:root[data-scheme="rainbow"]{
+  --found-theme-bg:var(--or-500);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-700);
+}
+/* C. Ultramarine members */
+:root[data-scheme="ultramarine"]{
+  --found-member-bg:var(--um-100);   --found-member-fg:var(--um-800);
+  --found-theme-bg:var(--or-500);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-700);
+}
+
+/* ── Dark-mode conversion (fills 500→300, pale→#242424) per scheme ────── */
+:root.dark{
+  /* pale surface -> near-black */
+  --tile-sel-bg:#EDEDF2;             --tile-sel-fg:var(--ink-900);
+  --thread-stroke:#EDEDF2;
+  /* member rows: pale 100 is too bright on dark — use 800 fill / 200 text */
+  --found-member-bg:var(--or-800);   --found-member-fg:var(--or-200);
+  /* theme: 500 -> 300, text flips dark for contrast on the lighter fill */
+  --found-theme-bg:var(--um-300);    --found-theme-fg:var(--um-900);
+  --found-theme-ring:var(--um-500);
+}
+:root.dark[data-scheme="rainbow"]{
+  --found-theme-bg:var(--or-300);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-500);
+}
+:root.dark[data-scheme="ultramarine"]{
+  --found-member-bg:var(--um-800);   --found-member-fg:var(--um-200);
+  --found-theme-bg:var(--or-300);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-500);
 }
 
 /* ── base ─────────────────────────────────────────────────────────────── */
@@ -128,15 +198,6 @@ svg{display:block}
 .btn--block{width:100%}
 .btn[disabled]{opacity:.45;pointer-events:none}
 .btnrow{display:flex;gap:.75rem;width:100%}
-.btn--board{flex:1;padding:.75rem 1rem;
-  background:color-mix(in oklch,var(--_surface) 22%,var(--background));
-  color:var(--muted-foreground);
-  border-color:color-mix(in oklch,var(--_surface) 45%,var(--background))}
-.btn--boardPrimary{background:var(--_accent);color:var(--_on-accent);
-  border-color:color-mix(in oklch,var(--_detail) 45%,var(--_accent));
-  box-shadow:0 3px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent))}
-.btn--boardPrimary:active{transform:translateY(2px);
-  box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent))}
 .textbtn{font-weight:500;color:var(--muted-foreground);display:inline-flex;
   align-items:center;gap:.375rem;padding:.5rem}
 
@@ -168,31 +229,47 @@ svg{display:block}
   border-radius:10px;
   border:1px solid var(--block-border);
   box-shadow:0 4px 0 var(--block-shadow),0 4px 8px oklch(0 0 0/.08);
-  transition:background .15s,transform .1s,box-shadow .1s}
-.block:active{transform:translateY(3px);
-  box-shadow:0 1px 0 var(--block-shadow),0 1px 2px oklch(0 0 0/.06)}
-.block--selected{background:var(--_accent);color:var(--_on-accent);
-  border-color:color-mix(in oklch,var(--_detail) 50%,var(--_accent));
+  /* slow overshoot on release (spring-up ~160ms) */
+  transition:background .15s,transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .16s}
+/* pressed = pointer held on a selectable tile (fast press-down ~80ms ease-out) */
+.block--pressed{transform:translateY(3px);
+  box-shadow:0 1px 0 var(--block-shadow),0 1px 2px oklch(0 0 0/.06);
+  transition:transform .08s ease-out,box-shadow .08s ease-out}
+.block--selected{background:var(--tile-sel-bg);color:var(--tile-sel-fg);
+  border-color:var(--tile-sel-bg);
   transform:translateY(3px);
-  box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent)),0 1px 2px oklch(0 0 0/.06)}
+  box-shadow:0 1px 0 color-mix(in srgb,var(--tile-sel-bg) 70%,black),0 1px 2px oklch(0 0 0/.06)}
 .block--available{background:var(--block-bg);
   border-color:var(--block-border-strong)}
-.block--found{pointer-events:none;cursor:default;
-  border-color:transparent;
-  box-shadow:none;
-  font-weight:700}
-/* found-word row hues (Phase 0.5 — were WORD_COLORS in JS) */
-.found--c0{background:var(--word-c0-bg);color:var(--word-c0-text)}
-.found--c1{background:var(--word-c1-bg);color:var(--word-c1-text)}
-.found--c2{background:var(--word-c2-bg);color:var(--word-c2-text)}
-.found--c3{background:var(--word-c3-bg);color:var(--word-c3-text)}
-.found--c4{background:var(--word-c4-bg);color:var(--word-c4-text)}
-.block--removing{animation:blockOut .35s ease-in forwards;pointer-events:none}
-@keyframes blockOut{
-  0%{transform:scale(1);opacity:1}
-  50%{transform:scale(1.1) translateY(-4px);opacity:.9}
-  100%{transform:scale(.7) translateY(-20px);opacity:0}
-}
+@keyframes tileNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
+.block--nudge{animation:tileNudge .12s ease-out}
+/* ── Phase 1b: found words render as a single full-width bar per word ──── */
+.found-bar{grid-column:1 / -1;display:grid;place-items:center;position:relative;
+  min-height:3.5rem;border-radius:10px;
+  font-family:var(--font-body);font-weight:700;
+  font-size:clamp(.875rem,4.2vw,1.2rem);letter-spacing:.02em;
+  pointer-events:none;cursor:default}
+/* scheme colours (driven by [data-scheme]) */
+.found--member{background:var(--found-member-bg);color:var(--found-member-fg)}
+/* Rainbow scheme: member colour by discovery order among members only */
+:root[data-scheme="rainbow"] .found--m0{background:var(--gr-100);color:var(--gr-800)}
+:root[data-scheme="rainbow"] .found--m1{background:var(--pu-100);color:var(--pu-800)}
+:root[data-scheme="rainbow"] .found--m2{background:var(--bl-100);color:var(--bl-800)}
+:root[data-scheme="rainbow"] .found--m3{background:var(--pk-100);color:var(--pk-800)}
+:root.dark[data-scheme="rainbow"] .found--m0{background:var(--gr-800);color:var(--gr-200)}
+:root.dark[data-scheme="rainbow"] .found--m1{background:var(--pu-800);color:var(--pu-200)}
+:root.dark[data-scheme="rainbow"] .found--m2{background:var(--bl-800);color:var(--bl-200)}
+:root.dark[data-scheme="rainbow"] .found--m3{background:var(--pk-800);color:var(--pk-200)}
+/* Theme found bar + persistent marker (inset ring in its own 700 shade) */
+.found--theme{background:var(--found-theme-bg);color:var(--found-theme-fg);
+  box-shadow:inset 0 0 0 2px var(--found-theme-ring)}
+/* spool glyph at the left edge of the theme bar */
+.found--spool::before{content:"";position:absolute;left:12px;top:50%;
+  width:18px;height:18px;transform:translateY(-50%);opacity:.75;
+  background:currentColor;
+  -webkit-mask:var(--spool-glyph) center/contain no-repeat;
+  mask:var(--spool-glyph) center/contain no-repeat}
+
 .block--settle{animation:settle .35s ease-out}
 @keyframes settle{from{transform:translateY(-10px);opacity:.5}to{transform:none;opacity:1}}
 .block--found-pop{animation:foundPop .4s cubic-bezier(.34,1.56,.64,1)}
@@ -204,19 +281,24 @@ svg{display:block}
 
 /* ── thread SVG ───────────────────────────────────────────────────────── */
 .thread-svg{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:visible}
-.thread-line{fill:none;stroke:var(--_detail);stroke-width:3;
+.thread-line{fill:none;stroke:var(--thread-stroke);stroke-width:3;
   stroke-linecap:round;stroke-linejoin:round;opacity:.5}
 .thread-line--valid{stroke:var(--thread-valid);opacity:.7}
 .thread-line--invalid{stroke:var(--destructive);opacity:.7}
 
-/* ── word preview bar ──────────────────────────────────────────────────── */
-.word-preview{display:flex;align-items:center;justify-content:center;gap:.25rem;
-  font-family:var(--font-body);font-weight:700;font-size:1.125rem;
-  min-height:2.25rem;letter-spacing:.02em}
-.wp-block{padding:.125rem .5rem;border-radius:6px;
-  background:var(--_accent);color:var(--_on-accent);min-width:1.75rem;text-align:center}
-.wp-empty{background:var(--wp-empty-bg);color:var(--muted-foreground);font-weight:500}
-.wp-sep{color:var(--muted-foreground);font-size:.75rem}
+/* ── word preview tray (Phase 2) ───────────────────────────────────────── */
+.word-preview{display:flex;align-items:center;justify-content:center;gap:.5rem;
+  min-height:2.25rem;padding:.5rem;border-radius:14px;
+  background:var(--tray-bg);max-width:22rem;width:100%;margin-inline:auto}
+.wp-slot{position:relative;flex:1;max-width:3.25rem;aspect-ratio:1;
+  border-radius:9px;background:var(--slot-bg);
+  box-shadow:inset 0 2px 5px var(--slot-inset)}
+.wp-chip{position:absolute;inset:0;display:grid;place-items:center;
+  border-radius:9px;background:var(--block-bg);color:var(--foreground);
+  border:1px solid var(--block-border);
+  box-shadow:0 3px 0 var(--block-shadow),0 3px 6px oklch(0 0 0/.1);
+  font-family:var(--font-body);font-weight:700;
+  font-size:clamp(.8rem,3.6vw,1.05rem)}
 
 /* category shimmer — golden glow wave across found row */
 .block--shimmer{animation:shimmerWave .8s var(--d,0s) ease both}
@@ -338,14 +420,16 @@ svg{display:block}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
 /* ── animations ───────────────────────────────────────────────────────── */
-@keyframes shake{0%,to{transform:translate(0)}10%,30%,50%,70%,90%{transform:translate(-2px)}
-  20%,40%,60%,80%{transform:translate(2px)}}
-.animate-shake{animation:.6s shake}
 @keyframes celebrate{0%,to{transform:scale(1)}40%{transform:scale(1.08)}}
 .animate-celebrate{animation:.5s cubic-bezier(.34,1.56,.64,1) celebrate}
 
 /* Reduced motion is handled per-feature by the JS animation helper (Phase 0.3),
-   not by a global kill-switch. */
+   not by a global kill-switch. Press/tray transitions become instant. */
+@media(prefers-reduced-motion:reduce){
+  .block{transition:background .15s}
+  .block--pressed{transition:none}
+  .block--nudge{animation:none}
+}
 
 </style>
 </head>
@@ -463,16 +547,6 @@ svg{display:block}
         <div class="tgrid" id="tgrid"></div>
         <svg class="thread-svg" id="thread-svg" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
-      <div class="btnrow">
-        <button class="btn btn--board btn--boardPrimary" id="clearBtn">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7l-4-4 9-9 8 8z"/><path d="m14 5 5 5"/></svg>
-          Clear
-        </button>
-        <button class="btn btn--board btn--boardPrimary" id="shuffleBtn">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
-          Shuffle
-        </button>
-      </div>
     </div>
   </section>
 
@@ -541,6 +615,10 @@ svg{display:block}
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
     <span class="row__t">How to play</span>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted-foreground)"><path d="m9 18 6-6-6-6"/></svg>
+  </button>
+  <button class="row" id="shuffleBtn" style="cursor:pointer">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+    <span class="row__t">Shuffle tiles</span>
   </button>
   <div class="row">
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2M15.5 8.5a5 5 0 0 1 0 7"/></svg>
@@ -868,7 +946,7 @@ const S = {
   columns: [],          // columns[c] = [{text, origRow, id}]
   selection: [],        // [{col, idx, block}]
   found: [],            // found word strings
-  foundBlocks: [],      // [{word, blocks:[{col,block}], colorIdx}]
+  foundBlocks: [],      // [{word, blocks:[{col,block}], memberIdx}]
   removed: new Set(),   // "origRow-col" ids
   seconds: 0,
   running: false,
@@ -913,6 +991,7 @@ function shuffleColumns() {
   }
   clearSelection();
   renderGrid({ flip: true });
+  renderWordPreview();
   drawThread();
 }
 
@@ -944,28 +1023,26 @@ function renderGrid(opts = {}) {
   const seenFound = new Set();
   const seenActive = new Set();
 
-  /* ── found word rows (colored, keyed, at the top) ──────────────────── */
+  /* ── found word bars (one full-width node per word, keyed) ─────────── */
   for (let fi = 0; fi < S.foundBlocks.length; fi++) {
     const fw = S.foundBlocks[fi];
     const isTheme = fw.word === p.categoryWord;
-    for (const fb of fw.blocks) {
-      const key = fw.word + "|" + fb.col;
-      seenFound.add(key);
-      let node = foundMap.get(key);
-      const fresh = !node;
-      if (fresh) {
-        node = document.createElement("div");
-        node.textContent = fb.block.text;
-        foundMap.set(key, node);
-        g.appendChild(node);
-      }
-      node.className = "block block--found found--c" + (fw.colorIdx % 5)
-        + (isTheme ? " found--theme" : " found--member");
-      node.style.gridColumn = fb.col + 1;
-      node.style.gridRow = rowCursor;
-      if (fresh && foundPop && fi === S.foundBlocks.length - 1)
-        node.classList.add("block--found-pop");
+    const key = fw.word;
+    seenFound.add(key);
+    let node = foundMap.get(key);
+    const fresh = !node;
+    if (fresh) {
+      node = document.createElement("div");
+      node.textContent = fw.word;
+      foundMap.set(key, node);
+      g.appendChild(node);
     }
+    node.className = "found-bar"
+      + (isTheme ? " found--theme found--spool" : " found--member found--m" + (fw.memberIdx % 4));
+    node.style.gridColumn = "1 / -1";
+    node.style.gridRow = rowCursor;
+    if (fresh && foundPop && fi === S.foundBlocks.length - 1)
+      node.classList.add("block--found-pop");
     rowCursor++;
   }
 
@@ -1049,17 +1126,56 @@ function clearGridNodes() {
 }
 
 
-function renderWordPreview() {
+/* ── word preview tray (Phase 2) — keyed 5 slots, rise/sink on fill ────── */
+let traySlots = null;
+let trayState = [null, null, null, null, null];
+
+function buildTray() {
   const wp = $("#word-preview");
   wp.innerHTML = "";
+  traySlots = [];
   for (let c = 0; c < 5; c++) {
-    if (c > 0) wp.appendChild(el("span", "wp-sep", "·"));
+    const slot = el("div", "wp-slot");
+    wp.appendChild(slot);
+    traySlots.push(slot);
+  }
+  trayState = [null, null, null, null, null];
+}
+
+function renderWordPreview() {
+  if (!traySlots || !traySlots[0].isConnected) buildTray();
+  for (let c = 0; c < 5; c++) {
     const sel = S.selection.find(s => s.col === c);
-    if (sel) {
-      wp.appendChild(el("span", "wp-block", sel.block.text));
+    const text = sel ? sel.block.text : null;
+    if (text === trayState[c]) continue;
+    const slot = traySlots[c];
+
+    if (text != null) {
+      // fill: a chip rises out of the socket
+      slot.innerHTML = "";
+      const chip = el("div", "wp-chip");
+      chip.textContent = text;
+      slot.appendChild(chip);
+      if (!prefersReducedMotion()) {
+        chip.animate(
+          [{ transform: "translateY(6px)", boxShadow: "0 0 0 oklch(0 0 0/0)", opacity: 0.6 },
+           { transform: "translateY(0)", opacity: 1 }],
+          { duration: 200, easing: "cubic-bezier(.34,1.56,.64,1)" });
+      }
     } else {
-      wp.appendChild(el("span", "wp-block wp-empty", "_"));
+      // empty: the chip sinks back into the socket, then is removed
+      const chip = slot.querySelector(".wp-chip");
+      if (chip && !prefersReducedMotion()) {
+        const a = chip.animate(
+          [{ transform: "translateY(0)", opacity: 1 },
+           { transform: "translateY(6px)", opacity: 0.3 }],
+          { duration: 140, easing: "ease-in" });
+        a.finished.then(() => { if (trayState[c] == null) slot.innerHTML = ""; }).catch(() => {});
+      } else {
+        slot.innerHTML = "";
+      }
     }
+    trayState[c] = text;
   }
 }
 
@@ -1145,8 +1261,37 @@ $("#tgrid").addEventListener("click", e => {
   }
 });
 
-$("#clearBtn").onclick = () => { clearSelection(); renderGrid(); renderWordPreview(); drawThread(); };
-$("#shuffleBtn").onclick = () => shuffleColumns();
+/* ── Phase 2: press feedback (pointer-driven visual state only) ─────────
+   Selection logic stays on `click` above; these handlers only toggle the
+   depressed look and nudge refused tiles. Haptics stay in the click path,
+   so `select` fires exactly once per selection. */
+let pressedNode = null;
+function releasePress() {
+  if (pressedNode) { pressedNode.classList.remove("block--pressed"); pressedNode = null; }
+}
+$("#tgrid").addEventListener("pointerdown", e => {
+  if (S.won || S.checking) return;
+  const blockEl = e.target.closest(".block");
+  if (!blockEl) return;
+  const col = parseInt(blockEl.dataset.col);
+  const nextCol = S.selection.length;
+  const actionable = S.selection.some(s => s.col === col) || col === nextCol;
+  if (actionable) {
+    releasePress();
+    blockEl.classList.add("block--pressed");
+    pressedNode = blockEl;
+  } else {
+    // wrong column: acknowledge but refuse — small nudge, no press, no haptic
+    blockEl.classList.remove("block--nudge");
+    void blockEl.offsetWidth;
+    blockEl.classList.add("block--nudge");
+  }
+});
+$("#tgrid").addEventListener("pointerup", releasePress);
+$("#tgrid").addEventListener("pointercancel", releasePress);
+$("#tgrid").addEventListener("pointerleave", releasePress);
+
+$("#shuffleBtn").onclick = () => { closeSheet(); shuffleColumns(); };
 
 function clearSelection() { S.selection = []; }
 
@@ -1171,10 +1316,12 @@ async function handleValidWord(word) {
   drawThread("valid");
 
   // Record the found blocks for the colored top rows
+  const isTheme = word === p.categoryWord;
   const foundEntry = {
     word,
     blocks: S.selection.map(s => ({ col: s.col, block: s.block })),
-    colorIdx: S.foundBlocks.length
+    // discovery order among members only — theme never consumes a colour slot
+    memberIdx: isTheme ? -1 : S.foundBlocks.filter(f => f.word !== p.categoryWord).length
   };
 
   // Animate the selected blocks out (WAAPI, reduced-motion = fade)
@@ -1253,7 +1400,7 @@ async function handleInvalidWord() {
    ════════════════════════════════════════════════════════════════════════ */
 function showCategoryReveal() {
   if (!prefersReducedMotion()) {
-    const foundBlocks = document.querySelectorAll(".block--found");
+    const foundBlocks = document.querySelectorAll(".found-bar");
     foundBlocks.forEach((block, i) => {
       block.style.setProperty("--d", (i * 0.07) + "s");
       block.classList.remove("block--shimmer");
@@ -1422,6 +1569,7 @@ function resetRound() {
   S.seconds = 0; S.won = false; S.checking = false;
   stopClock(); $("#timer").textContent = "00:00";
   clearGridNodes();
+  if (traySlots) buildTray();
   initGrid();
 }
 
