@@ -250,10 +250,17 @@ svg{display:block}
 .block--nudge{animation:tileNudge .12s ease-out}
 /* ── Phase 1b: found words render as a single full-width bar per word ──── */
 .found-bar{grid-column:1 / -1;display:grid;place-items:center;position:relative;
-  min-height:3.5rem;border-radius:10px;
+  min-height:3.5rem;border-radius:10px;overflow:hidden;
   font-family:var(--font-body);font-weight:700;
   font-size:clamp(.875rem,4.2vw,1.2rem);letter-spacing:.02em;
   pointer-events:none;cursor:default}
+/* Phase 4: a light band sweeps left→right across the bar once on success */
+.found-bar--ripple::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  pointer-events:none;transform:translateX(-120%);
+  background:linear-gradient(100deg,transparent 25%,
+    color-mix(in srgb,#fff 55%,transparent) 50%,transparent 75%);
+  animation:foundRipple .35s ease-out forwards}
+@keyframes foundRipple{to{transform:translateX(120%)}}
 /* scheme colours (driven by [data-scheme]) */
 .found--member{background:var(--found-member-bg);color:var(--found-member-fg)}
 /* Rainbow scheme: member colour by discovery order among members only */
@@ -445,6 +452,7 @@ svg{display:block}
   .block--pressed{transition:none}
   .block--nudge{animation:none}
   .wp-chip::after{transition:none}
+  .found-bar--ripple::after{animation:none;display:none}
 }
 
 </style>
@@ -1488,7 +1496,6 @@ async function checkAndHandleWord() {
 async function handleValidWord(word) {
   const p = puzzle();
   S.found.push(word);
-  drawThread({ cls: "valid" });
 
   // Record the found blocks for the colored top rows
   const isTheme = word === p.categoryWord;
@@ -1499,18 +1506,37 @@ async function handleValidWord(word) {
     memberIdx: isTheme ? -1 : S.foundBlocks.filter(f => f.word !== p.categoryWord).length
   };
 
-  // Animate the selected blocks out (WAAPI, reduced-motion = fade)
-  await Promise.all(S.selection.map(s => {
-    const node = nodeMap.get(s.block.id);
-    return anim(node, [
-      { transform: "scale(1)", opacity: 1, offset: 0 },
-      { transform: "scale(1.1) translateY(-4px)", opacity: 0.9, offset: 0.5 },
-      { transform: "scale(.7) translateY(-20px)", opacity: 0, offset: 1 }
-    ], { duration: 350, easing: "ease-in", fill: "forwards",
-         reduced: [{ opacity: 1 }, { opacity: 0 }] });
-  }));
+  // nodes for the five selected tiles, left→right
+  const selNodes = S.selection
+    .slice().sort((a, b) => a.col - b.col)
+    .map(s => nodeMap.get(s.block.id)).filter(Boolean);
 
-  // Remove the consumed nodes and commit to state
+  /* ── Phase 4 success sequence (input stays blocked: S.checking is true) ─ */
+
+  // 1. thread tints green and holds briefly
+  drawThread({ cls: "valid" });
+  await wait(100);
+
+  // 2. tiles hop left→right with a squash on landing (reduced motion: skip)
+  if (!prefersReducedMotion()) {
+    selNodes.forEach(n => (n.style.transformOrigin = "bottom"));
+    await stagger(selNodes, 40, n => anim(n, [
+      { transform: "translateY(0) scaleY(1)", offset: 0 },
+      { transform: "translateY(-10px) scaleY(1)", offset: 0.45 },
+      { transform: "translateY(0) scaleY(.92)", offset: 0.75 },
+      { transform: "translateY(0) scaleY(1)", offset: 1 }
+    ], { duration: 320, easing: "cubic-bezier(.34,1.56,.64,1)", reduced: null }));
+  }
+
+  // 3a. the five tiles collapse (scale down + fade) …
+  const collapse = Promise.all(selNodes.map(n => anim(n, [
+    { transform: "scale(1)", opacity: 1 },
+    { transform: "scale(.55)", opacity: 0 }
+  ], { duration: 200, easing: "ease-in", fill: "forwards",
+       reduced: [{ opacity: 1 }, { opacity: 0 }] })));
+  await collapse;
+
+  // 3b. … commit state; the row grows in at its place; remaining tiles FLIP up
   for (const s of S.selection) {
     const node = nodeMap.get(s.block.id);
     if (node) { node.remove(); nodeMap.delete(s.block.id); }
@@ -1519,26 +1545,54 @@ async function handleValidWord(word) {
   S.foundBlocks.push(foundEntry);
   S.selection = [];
   initGrid();
-  renderGrid({ foundPop: true, flip: true }); // remaining blocks fall up (FLIP)
+  renderGrid({ flip: true });
   renderWordPreview();
   updateHud();
   drawThread();
   haptic("found");
 
-  // Category reveal?
-  if (word === p.categoryWord) {
-    await wait(400);
-    showCategoryReveal();
-    haptic("theme");
+  const bar = foundMap.get(word);
+  const grow = anim(bar, [
+    { transform: "scale(.5)", opacity: 0.3 },
+    { transform: "scale(1)", opacity: 1 }
+  ], { duration: 220, easing: "cubic-bezier(.34,1.56,.64,1)",
+       reduced: [{ opacity: 0 }, { opacity: 1 }] });
+
+  // 4. the row ripples: a light band sweeps across while the bar pulses once
+  if (bar && !prefersReducedMotion()) {
+    bar.classList.remove("found-bar--ripple");
+    void bar.offsetWidth;
+    bar.classList.add("found-bar--ripple");
+    bar.addEventListener("animationend", () => bar.classList.remove("found-bar--ripple"), { once: true });
   }
+  const pulse = anim(bar, [
+    { transform: "scale(1)" },
+    { transform: "scale(1.03)", offset: 0.5 },
+    { transform: "scale(1)" }
+  ], { duration: 350, easing: "ease-out", reduced: null });
+  await Promise.all([grow, pulse]);
+
+  // 6. (haptic found already fired at reveal)
+
+  // Theme word: Phase 5 celebration chains here (awaited hook).
+  if (isTheme) await onThemeFound();
 
   // Completion?
   if (S.found.length === p.words.length && !S.won) {
-    await wait(800);
+    await wait(500);
     finish();
   }
 
   S.checking = false;
+}
+
+/* Phase 4→5 hook: runs after the success sequence for the THEME word only.
+   Phase 5 will replace the body with its switchable celebration. For now it
+   reveals the scheme colour, shows the category toast and fires the haptic. */
+async function onThemeFound() {
+  showCategoryReveal();
+  haptic("theme");
+  await wait(400);
 }
 
 async function handleInvalidWord() {
