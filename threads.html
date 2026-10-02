@@ -221,7 +221,9 @@ svg{display:block}
 .grid-wrap{position:relative;width:100%}
 .tgrid{display:grid;grid-template-columns:repeat(5,1fr);
   gap:10px;padding:6px;
-  touch-action:manipulation;user-select:none}
+  /* Phase 3: own the gesture so tap+drag works and the thread can layer
+     between unselected and selected tiles (no stacking context here) */
+  touch-action:none;user-select:none}
 .block{background:var(--block-bg);display:grid;place-items:center;
   min-height:3.5rem;font-family:var(--font-body);font-weight:700;
   font-size:clamp(.875rem,4.2vw,1.2rem);color:var(--foreground);
@@ -238,6 +240,9 @@ svg{display:block}
 .block--selected{background:var(--tile-sel-bg);color:var(--tile-sel-fg);
   border-color:var(--tile-sel-bg);
   transform:translateY(3px);
+  /* above the thread SVG (z-index:1) so the thread reads as passing behind
+     the selected beads; unselected tiles stay at auto (below the thread) */
+  z-index:2;
   box-shadow:0 1px 0 color-mix(in srgb,var(--tile-sel-bg) 70%,black),0 1px 2px oklch(0 0 0/.06)}
 .block--available{background:var(--block-bg);
   border-color:var(--block-border-strong)}
@@ -281,10 +286,15 @@ svg{display:block}
 
 /* ── thread SVG ───────────────────────────────────────────────────────── */
 .thread-svg{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:visible}
-.thread-line{fill:none;stroke:var(--thread-stroke);stroke-width:3;
-  stroke-linecap:round;stroke-linejoin:round;opacity:.5}
-.thread-line--valid{stroke:var(--thread-valid);opacity:.7}
-.thread-line--invalid{stroke:var(--destructive);opacity:.7}
+/* base strand (near-black, round) + lighter dashed overlay = twisted fibre */
+.thread-line{fill:none;stroke:var(--thread-stroke);stroke-width:4;
+  stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.thread-overlay{fill:none;stroke:var(--thread-stroke);stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:3 4;opacity:.35}
+.thread--valid .thread-line{stroke:var(--thread-valid)}
+.thread--valid .thread-overlay{stroke:var(--thread-valid)}
+.thread--invalid .thread-line{stroke:var(--destructive)}
+.thread--invalid .thread-overlay{stroke:var(--destructive)}
 
 /* ── word preview tray (Phase 2) ───────────────────────────────────────── */
 .word-preview{display:flex;align-items:center;justify-content:center;gap:.5rem;
@@ -296,9 +306,14 @@ svg{display:block}
 .wp-chip{position:absolute;inset:0;display:grid;place-items:center;
   border-radius:9px;background:var(--block-bg);color:var(--foreground);
   border:1px solid var(--block-border);
-  box-shadow:0 3px 0 var(--block-shadow),0 3px 6px oklch(0 0 0/.1);
   font-family:var(--font-body);font-weight:700;
   font-size:clamp(.8rem,3.6vw,1.05rem)}
+/* Phase 2 follow-up: raised drop-shadow lives on its own layer and fades
+   0->1 on rise, 1->0 on sink */
+.wp-chip::after{content:"";position:absolute;inset:0;border-radius:9px;
+  box-shadow:0 3px 0 var(--block-shadow),0 3px 6px oklch(0 0 0/.1);
+  opacity:0;transition:opacity .2s ease;pointer-events:none}
+.wp-chip--raised::after{opacity:1}
 
 /* category shimmer — golden glow wave across found row */
 .block--shimmer{animation:shimmerWave .8s var(--d,0s) ease both}
@@ -429,6 +444,7 @@ svg{display:block}
   .block{transition:background .15s}
   .block--pressed{transition:none}
   .block--nudge{animation:none}
+  .wp-chip::after{transition:none}
 }
 
 </style>
@@ -1158,13 +1174,17 @@ function renderWordPreview() {
       slot.appendChild(chip);
       if (!prefersReducedMotion()) {
         chip.animate(
-          [{ transform: "translateY(6px)", boxShadow: "0 0 0 oklch(0 0 0/0)", opacity: 0.6 },
+          [{ transform: "translateY(6px)", opacity: 0.6 },
            { transform: "translateY(0)", opacity: 1 }],
           { duration: 200, easing: "cubic-bezier(.34,1.56,.64,1)" });
+        // raised shadow fades in on its own ::after layer (reflow first)
+        void chip.offsetWidth;
       }
+      chip.classList.add("wp-chip--raised");
     } else {
       // empty: the chip sinks back into the socket, then is removed
       const chip = slot.querySelector(".wp-chip");
+      if (chip) chip.classList.remove("wp-chip--raised"); // shadow fades out
       if (chip && !prefersReducedMotion()) {
         const a = chip.animate(
           [{ transform: "translateY(0)", opacity: 1 },
@@ -1187,8 +1207,40 @@ function updateHud() {
     : remaining + " word" + (remaining > 1 ? "s" : "") + " remaining";
 }
 
-/* ── thread SVG ────────────────────────────────────────────────────────── */
-function drawThread(cls) {
+/* ── thread SVG (Phase 3: curved path + live loose end) ───────────────── */
+const SVGNS = "http://www.w3.org/2000/svg";
+
+/* cached tile centres (container-relative), refreshed at drag start / resize */
+const tileCenters = new Map();
+function cacheTileCenters() {
+  tileCenters.clear();
+  const cRect = $(".grid-wrap").getBoundingClientRect();
+  for (const [id, node] of nodeMap) {
+    const b = node.getBoundingClientRect();
+    tileCenters.set(id, {
+      x: b.left + b.width / 2 - cRect.left,
+      y: b.top + b.height / 2 - cRect.top
+    });
+  }
+}
+
+/* Catmull-Rom (tension ~0.5) -> cubic Bézier. `sag` droops the final
+   segment's control points downward so a loose end feels like slack thread. */
+function threadPath(pts, sag) {
+  if (pts.length === 1) return "M" + pts[0].x + "," + pts[0].y;
+  let d = "M" + pts[0].x + "," + pts[0].y;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    let c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+    let c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    if (sag && i === pts.length - 2) { c1y += sag * 0.5; c2y += sag; }
+    d += " C" + c1x + "," + c1y + " " + c2x + "," + c2y + " " + p2.x + "," + p2.y;
+  }
+  return d;
+}
+
+function drawThread(opts = {}) {
+  const { cls, end = null } = opts;
   const svg = $("#thread-svg");
   const container = $(".grid-wrap");
   svg.innerHTML = "";
@@ -1201,95 +1253,218 @@ function drawThread(cls) {
 
   const points = [];
   for (const s of S.selection) {
-    const blockEl = document.querySelector('[data-id="' + s.block.id + '"]');
-    if (!blockEl) continue;
-    const bRect = blockEl.getBoundingClientRect();
-    points.push({
-      x: bRect.left + bRect.width / 2 - cRect.left,
-      y: bRect.top + bRect.height / 2 - cRect.top
-    });
+    if (dragging && tileCenters.has(s.block.id)) {
+      const c = tileCenters.get(s.block.id);
+      points.push({ x: c.x, y: c.y });
+    } else {
+      const blockEl = nodeMap.get(s.block.id);
+      if (!blockEl) continue;
+      const bRect = blockEl.getBoundingClientRect();
+      points.push({
+        x: bRect.left + bRect.width / 2 - cRect.left,
+        y: bRect.top + bRect.height / 2 - cRect.top
+      });
+    }
   }
-  if (points.length < 1) return;
 
-  if (points.length > 1) {
-    const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    polyline.setAttribute("points", points.map(p => p.x + "," + p.y).join(" "));
-    polyline.setAttribute("class", "thread-line" + (cls ? " thread-line--" + cls : ""));
-    svg.appendChild(polyline);
+  let sag = 0;
+  if (end) {
+    const last = points[points.length - 1];
+    if (last) {
+      const len = Math.hypot(end.x - last.x, end.y - last.y);
+      if (!prefersReducedMotion()) sag = Math.min(len * 0.18, 24);
+    }
+    points.push({ x: end.x, y: end.y });
   }
+  if (points.length < 2) return;
+
+  const d = threadPath(points, sag);
+  const g = document.createElementNS(SVGNS, "g");
+  g.setAttribute("class", "thread" + (cls ? " thread--" + cls : ""));
+  const base = document.createElementNS(SVGNS, "path");
+  base.setAttribute("d", d); base.setAttribute("class", "thread-line");
+  const over = document.createElementNS(SVGNS, "path");
+  over.setAttribute("d", d); over.setAttribute("class", "thread-overlay");
+  g.appendChild(base); g.appendChild(over);
+  svg.appendChild(g);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   INTERACTION
+   INTERACTION — Phase 3: unified Pointer Events (tap + drag)
+   One handler owns selection, press visuals and the live loose end. A tap is
+   pointerdown+pointerup without entering another tile (old click behaviour).
    ════════════════════════════════════════════════════════════════════════ */
-$("#tgrid").addEventListener("click", e => {
-  const blockEl = e.target.closest(".block");
-  if (!blockEl || S.won || S.checking) return;
+const grid = $("#tgrid");
 
-  const col = parseInt(blockEl.dataset.col);
-  const idx = parseInt(blockEl.dataset.idx);
-  const block = S.columns[col][idx];
-  const nextCol = S.selection.length;
-
-  const existingIdx = S.selection.findIndex(s => s.col === col);
-
-  if (existingIdx >= 0) {
-    if (S.selection[existingIdx].block.id === block.id) {
-      S.selection = S.selection.slice(0, existingIdx);
-      haptic("deselect");
-    } else {
-      S.selection = S.selection.slice(0, existingIdx);
-      S.selection.push({ col, idx, block });
-      haptic("select");
-    }
-  } else if (col === nextCol) {
-    S.selection.push({ col, idx, block });
-    haptic("select");
-  } else {
-    return;
-  }
-
-  if (!S.running && !S.won) startClock();
-  renderGrid();
-  renderWordPreview();
-  drawThread();
-
-  if (S.selection.length === 5) {
-    S.checking = true;
-    renderGrid(); // re-render to remove "available" highlights
-    (async () => { await wait(400); await checkAndHandleWord(); })();
-  }
-});
-
-/* ── Phase 2: press feedback (pointer-driven visual state only) ─────────
-   Selection logic stays on `click` above; these handlers only toggle the
-   depressed look and nudge refused tiles. Haptics stay in the click path,
-   so `select` fires exactly once per selection. */
 let pressedNode = null;
 function releasePress() {
   if (pressedNode) { pressedNode.classList.remove("block--pressed"); pressedNode = null; }
 }
-$("#tgrid").addEventListener("pointerdown", e => {
-  if (S.won || S.checking) return;
-  const blockEl = e.target.closest(".block");
-  if (!blockEl) return;
-  const col = parseInt(blockEl.dataset.col);
-  const nextCol = S.selection.length;
-  const actionable = S.selection.some(s => s.col === col) || col === nextCol;
-  if (actionable) {
-    releasePress();
-    blockEl.classList.add("block--pressed");
-    pressedNode = blockEl;
+function pressTile(node) { releasePress(); if (node) { node.classList.add("block--pressed"); pressedNode = node; } }
+function nudgeTile(node) {
+  node.classList.remove("block--nudge"); void node.offsetWidth; node.classList.add("block--nudge");
+}
+function containerPoint(x, y) {
+  const r = $(".grid-wrap").getBoundingClientRect();
+  return { x: x - r.left, y: y - r.top };
+}
+
+/* hit-test the inner ~70% of a tile so diagonal drags don't clip neighbours */
+function hitTile(x, y) {
+  const t = document.elementFromPoint(x, y);
+  const b = t && t.closest ? t.closest(".block") : null;
+  if (!b || !b.dataset.id) return null;
+  const r = b.getBoundingClientRect();
+  const ix = r.width * 0.15, iy = r.height * 0.15;
+  if (x < r.left + ix || x > r.right - ix || y < r.top + iy || y > r.bottom - iy) return null;
+  return b;
+}
+
+/* ── live loose end (rAF lerp + sag) ───────────────────────────────────── */
+let dragging = false;
+let rafId = null, liveEnd = null, targetEnd = null;
+function loopStep() {
+  if (!dragging) { rafId = null; return; }
+  if (prefersReducedMotion() || !liveEnd) {
+    liveEnd = targetEnd ? { x: targetEnd.x, y: targetEnd.y } : null;
   } else {
-    // wrong column: acknowledge but refuse — small nudge, no press, no haptic
-    blockEl.classList.remove("block--nudge");
-    void blockEl.offsetWidth;
-    blockEl.classList.add("block--nudge");
+    liveEnd.x += (targetEnd.x - liveEnd.x) * 0.35;
+    liveEnd.y += (targetEnd.y - liveEnd.y) * 0.35;
   }
+  drawThread({ end: liveEnd });
+  rafId = requestAnimationFrame(loopStep);
+}
+function startLoop() { if (rafId == null) rafId = requestAnimationFrame(loopStep); }
+function stopLoop() {
+  dragging = false;
+  if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+  liveEnd = targetEnd = null;
+}
+
+function afterSelectionChange(liveThread) {
+  if (!S.running && !S.won) startClock();
+  renderGrid();
+  renderWordPreview();
+  if (!liveThread) drawThread();
+}
+function maybeAutoCheck() {
+  if (S.selection.length !== 5) return false;
+  S.checking = true;
+  if (drag) drag.locked = true;
+  stopLoop();
+  renderGrid();      // drop "available" highlights
+  drawThread();      // taut, no loose end
+  (async () => { await wait(400); await checkAndHandleWord(); })();
+  return true;
+}
+
+let drag = null;
+
+grid.addEventListener("pointerdown", e => {
+  if (S.won || S.checking || !e.isPrimary) return;
+  const blockEl = e.target.closest(".block");
+  if (!blockEl || !blockEl.dataset.id) return;
+
+  const col = +blockEl.dataset.col, idx = +blockEl.dataset.idx;
+  const block = S.columns[col][idx];
+  const nextCol = S.selection.length;
+  const existingIdx = S.selection.findIndex(s => s.col === col);
+  const isSelectedTile = existingIdx >= 0 && S.selection[existingIdx].block.id === block.id;
+  const isSameColDiff = existingIdx >= 0 && !isSelectedTile;
+  const isNext = existingIdx < 0 && col === nextCol && nextCol < 5;
+
+  // only next-col / already-selected / same-column-swap tiles are actionable
+  if (!isSelectedTile && !isSameColDiff && !isNext) { nudgeTile(blockEl); return; }
+
+  try { grid.setPointerCapture(e.pointerId); } catch {}
+  cacheTileCenters();
+  pressTile(blockEl);
+  drag = {
+    pointerId: e.pointerId, startId: block.id, startExistingIdx: existingIdx,
+    isSelectedTile, moved: false, committed: !isSelectedTile, locked: false
+  };
+
+  const cp = containerPoint(e.clientX, e.clientY);
+  dragging = true; targetEnd = cp; liveEnd = { x: cp.x, y: cp.y };
+
+  if (isNext) {
+    S.selection.push({ col, idx, block }); haptic("select");
+    afterSelectionChange(true);
+    if (maybeAutoCheck()) return;
+  } else if (isSameColDiff) {
+    S.selection = S.selection.slice(0, existingIdx);
+    S.selection.push({ col, idx, block }); haptic("select");
+    afterSelectionChange(true);
+    if (maybeAutoCheck()) return;
+  }
+  // isSelectedTile: defer mutation until we know tap vs drag
+  startLoop();
+  drawThread({ end: liveEnd });
 });
-$("#tgrid").addEventListener("pointerup", releasePress);
-$("#tgrid").addEventListener("pointercancel", releasePress);
-$("#tgrid").addEventListener("pointerleave", releasePress);
+
+grid.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.pointerId || S.checking || drag.locked) return;
+
+  targetEnd = containerPoint(e.clientX, e.clientY);
+  startLoop();
+
+  const tile = hitTile(e.clientX, e.clientY);
+  if (!tile) return;
+  const col = +tile.dataset.col, idx = +tile.dataset.idx;
+  const block = S.columns[col][idx];
+
+  if (block.id !== drag.startId) drag.moved = true;
+
+  // first real move off a deferred selected-tile start commits the drag start:
+  // last selected -> continue; earlier selected -> truncate to it
+  if (drag.isSelectedTile && !drag.committed && drag.moved) {
+    const ei = drag.startExistingIdx;
+    if (ei !== S.selection.length - 1) S.selection = S.selection.slice(0, ei + 1);
+    drag.committed = true;
+    afterSelectionChange(true);
+  }
+
+  const last = S.selection[S.selection.length - 1];
+  if (last && last.block.id === block.id) return; // still on current head
+
+  const alreadySel = S.selection.findIndex(s => s.block.id === block.id) >= 0;
+  const nextCol = S.selection.length;
+
+  if (!alreadySel && col === nextCol && nextCol < 5) {
+    // extend into the next column
+    S.selection.push({ col, idx, block }); haptic("select"); pressTile(tile);
+    afterSelectionChange(true);
+    maybeAutoCheck();
+  } else if (S.selection.length >= 2 &&
+             S.selection[S.selection.length - 2].block.id === block.id) {
+    // backtrack: dragging onto the second-to-last tile pops the head
+    S.selection.pop(); haptic("deselect"); pressTile(tile);
+    afterSelectionChange(true);
+  }
+  // anything else mid-drag is ignored
+});
+
+function endDrag(e, isCancel) {
+  if (drag && e.pointerId !== drag.pointerId) return;
+  if (drag && !isCancel && !drag.moved && !drag.locked) {
+    // tap: apply the deferred selected-tile behaviour (re-tap truncates here),
+    // provided the release is still over the grid (off-grid keeps selection)
+    const overEl = document.elementFromPoint(e.clientX, e.clientY);
+    const overGrid = !!(overEl && overEl.closest && overEl.closest(".block"));
+    if (drag.isSelectedTile && overGrid) {
+      S.selection = S.selection.slice(0, drag.startExistingIdx);
+      haptic("deselect");
+      afterSelectionChange(false);
+    }
+  }
+  releasePress();
+  const wasLocked = drag && drag.locked;
+  stopLoop();
+  if (!wasLocked) drawThread(); // remove the loose end; never clears selection
+  drag = null;
+}
+grid.addEventListener("pointerup", e => endDrag(e, false));
+grid.addEventListener("pointercancel", e => endDrag(e, true));
 
 $("#shuffleBtn").onclick = () => { closeSheet(); shuffleColumns(); };
 
@@ -1313,7 +1488,7 @@ async function checkAndHandleWord() {
 async function handleValidWord(word) {
   const p = puzzle();
   S.found.push(word);
-  drawThread("valid");
+  drawThread({ cls: "valid" });
 
   // Record the found blocks for the colored top rows
   const isTheme = word === p.categoryWord;
@@ -1367,7 +1542,7 @@ async function handleValidWord(word) {
 }
 
 async function handleInvalidWord() {
-  drawThread("invalid");
+  drawThread({ cls: "invalid" });
   haptic("wrong");
   toast("Not a valid word");
 
@@ -1622,6 +1797,7 @@ function toast(msg) {
   const wrap = document.querySelector(".grid-wrap");
   if (wrap && "ResizeObserver" in window) {
     const ro = new ResizeObserver(() => {
+      if (dragging) cacheTileCenters();      // keep cached centres accurate mid-drag
       if (S.selection.length) drawThread();
     });
     ro.observe(wrap);
