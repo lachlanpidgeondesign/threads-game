@@ -284,8 +284,6 @@ svg{display:block}
 
 .block--settle{animation:settle .35s ease-out}
 @keyframes settle{from{transform:translateY(-10px);opacity:.5}to{transform:none;opacity:1}}
-.block--found-pop{animation:foundPop .4s cubic-bezier(.34,1.56,.64,1)}
-@keyframes foundPop{0%{transform:scale(.5);opacity:.3}100%{transform:scale(1);opacity:1}}
 
 /* found word row separator */
 .grid-divider{grid-column:1/-1;height:2px;
@@ -453,7 +451,19 @@ svg{display:block}
   .block--nudge{animation:none}
   .wp-chip::after{transition:none}
   .found-bar--ripple::after{animation:none;display:none}
+  .found--flood::before{animation:none;display:none}
 }
+
+/* -- Phase 5: theme celebration overlay + bits ------------------------- */
+.fx{position:fixed;inset:0;width:100vw;height:100vh;z-index:60;
+  pointer-events:none;overflow:visible}
+.spool{color:var(--foreground)}
+/* theme bar colour "floods" in from the left (Stitch step 1) */
+.found--flood::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  pointer-events:none;transform:translateX(-110%);
+  background:linear-gradient(90deg,color-mix(in srgb,#fff 55%,transparent),transparent 72%);
+  animation:floodSweep .5s ease-out forwards}
+@keyframes floodSweep{to{transform:translateX(110%)}}
 
 </style>
 </head>
@@ -558,6 +568,9 @@ svg{display:block}
         </div>
         <div class="nav__m" id="mark-sm"></div>
         <div class="nav__r">
+          <span class="iconbtn iconbtn--bare spool" id="spool" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3v18M17 3v18M7 8h10M7 16h10M9 10.5l6 3M15 10.5l-6 3"/></svg>
+          </span>
           <button class="iconbtn" id="menuBtn" aria-label="Settings">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
           </button>
@@ -674,6 +687,10 @@ svg{display:block}
       <option value="tie">Tie</option>
     </select>
   </label>
+  <button class="row" id="replayBtn" hidden style="cursor:pointer">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+    <span class="row__t">Replay celebration</span>
+  </button>
   <div class="row">
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M15 3v18M4 8h5M4 16h5M15 8h5M15 16h5"/></svg>
     <span class="row__t">Haptics</span>
@@ -688,6 +705,7 @@ svg{display:block}
   style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px"></label>
 
 <div class="toast" id="toast">Copied</div>
+<svg class="fx" id="fx" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
 
 <script>
 "use strict";
@@ -1029,7 +1047,7 @@ const foundMap = new Map();   // "word|col" -> element
 let dividerEl = null;
 
 function renderGrid(opts = {}) {
-  const { settle = false, foundPop = false, flip = false } = opts;
+  const { settle = false, flip = false } = opts;
   const g = $("#tgrid");
   const p = puzzle();
 
@@ -1065,8 +1083,6 @@ function renderGrid(opts = {}) {
       + (isTheme ? " found--theme found--spool" : " found--member found--m" + (fw.memberIdx % 4));
     node.style.gridColumn = "1 / -1";
     node.style.gridRow = rowCursor;
-    if (fresh && foundPop && fi === S.foundBlocks.length - 1)
-      node.classList.add("block--found-pop");
     rowCursor++;
   }
 
@@ -1362,7 +1378,9 @@ function maybeAutoCheck() {
   stopLoop();
   renderGrid();      // drop "available" highlights
   drawThread();      // taut, no loose end
-  (async () => { await wait(400); await checkAndHandleWord(); })();
+  // brief hold so the completed word reads, then validate (kept short so a
+  // member word stays within the input-lock budget)
+  (async () => { await wait(150); await checkAndHandleWord(); })();
   return true;
 }
 
@@ -1506,93 +1524,345 @@ async function handleValidWord(word) {
     memberIdx: isTheme ? -1 : S.foundBlocks.filter(f => f.word !== p.categoryWord).length
   };
 
-  // nodes for the five selected tiles, left→right
+  const reduce = prefersReducedMotion();
   const selNodes = S.selection
     .slice().sort((a, b) => a.col - b.col)
     .map(s => nodeMap.get(s.block.id)).filter(Boolean);
+  const selCopy = S.selection.slice();
 
-  /* ── Phase 4 success sequence (input stays blocked: S.checking is true) ─ */
+  /* ── Phase 4 success sequence — overlapped so input unlocks fast ───────
+     Input stays blocked (S.checking stays true) only until the remaining
+     tiles finish their FLIP fall-up (≈≤800ms for a member word). The bar's
+     ripple + pulse run on the bar, not the grid, so they finish after the
+     unlock. For the THEME word, input stays locked through the whole
+     celebration, because the board is still mid-animation. */
 
-  // 1. thread tints green and holds briefly
+  // 1. thread tints green
   drawThread({ cls: "valid" });
-  await wait(100);
 
-  // 2. tiles hop left→right with a squash on landing (reduced motion: skip)
-  if (!prefersReducedMotion()) {
+  // 2. tiles hop left→right; the collapse begins as the last tile lands
+  if (!reduce) {
     selNodes.forEach(n => (n.style.transformOrigin = "bottom"));
-    await stagger(selNodes, 40, n => anim(n, [
+    selNodes.forEach((n, i) => setTimeout(() => anim(n, [
       { transform: "translateY(0) scaleY(1)", offset: 0 },
       { transform: "translateY(-10px) scaleY(1)", offset: 0.45 },
-      { transform: "translateY(0) scaleY(.92)", offset: 0.75 },
+      { transform: "translateY(0) scaleY(.92)", offset: 0.72 },
       { transform: "translateY(0) scaleY(1)", offset: 1 }
-    ], { duration: 320, easing: "cubic-bezier(.34,1.56,.64,1)", reduced: null }));
+    ], { duration: 300, easing: "cubic-bezier(.34,1.56,.64,1)", reduced: null }), i * 40));
+    await wait(360); // ≈ until the last tile has landed
   }
 
-  // 3a. the five tiles collapse (scale down + fade) …
+  // 3. tiles collapse (fire-and-forget) while we commit state and grow the
+  //    bar. Keep the collapsing nodes out of the keyed renderer so they can
+  //    finish their own animation (then we remove them).
+  for (const n of selNodes) n.classList.add("block--removing");
   const collapse = Promise.all(selNodes.map(n => anim(n, [
     { transform: "scale(1)", opacity: 1 },
     { transform: "scale(.55)", opacity: 0 }
-  ], { duration: 200, easing: "ease-in", fill: "forwards",
+  ], { duration: reduce ? 0 : 180, easing: "ease-in", fill: "forwards",
        reduced: [{ opacity: 1 }, { opacity: 0 }] })));
-  await collapse;
 
-  // 3b. … commit state; the row grows in at its place; remaining tiles FLIP up
-  for (const s of S.selection) {
-    const node = nodeMap.get(s.block.id);
-    if (node) { node.remove(); nodeMap.delete(s.block.id); }
-    S.removed.add(s.block.id);
-  }
+  for (const s of selCopy) { S.removed.add(s.block.id); nodeMap.delete(s.block.id); }
   S.foundBlocks.push(foundEntry);
   S.selection = [];
   initGrid();
-  renderGrid({ flip: true });
+  renderGrid({ flip: true });   // remaining tiles fall up (FLIP, ~250ms)
   renderWordPreview();
   updateHud();
   drawThread();
   haptic("found");
 
+  // the bar grows in at its place while the tiles collapse
   const bar = foundMap.get(word);
-  const grow = anim(bar, [
+  anim(bar, [
     { transform: "scale(.5)", opacity: 0.3 },
     { transform: "scale(1)", opacity: 1 }
-  ], { duration: 220, easing: "cubic-bezier(.34,1.56,.64,1)",
+  ], { duration: reduce ? 0 : 220, easing: "cubic-bezier(.34,1.56,.64,1)",
        reduced: [{ opacity: 0 }, { opacity: 1 }] });
 
-  // 4. the row ripples: a light band sweeps across while the bar pulses once
-  if (bar && !prefersReducedMotion()) {
+  // once the FLIP fall-up has finished, clean up the collapsed tile nodes …
+  await wait(reduce ? 0 : 260);
+  collapse.then(() => { for (const n of selNodes) n.remove(); });
+
+  // … and let the ripple + pulse finish on the bar after input unlocks
+  if (bar && !reduce) {
     bar.classList.remove("found-bar--ripple");
     void bar.offsetWidth;
     bar.classList.add("found-bar--ripple");
     bar.addEventListener("animationend", () => bar.classList.remove("found-bar--ripple"), { once: true });
+    anim(bar, [
+      { transform: "scale(1)" },
+      { transform: "scale(1.03)", offset: 0.5 },
+      { transform: "scale(1)" }
+    ], { duration: 350, easing: "ease-out", reduced: null });
   }
-  const pulse = anim(bar, [
-    { transform: "scale(1)" },
-    { transform: "scale(1.03)", offset: 0.5 },
-    { transform: "scale(1)" }
-  ], { duration: 350, easing: "ease-out", reduced: null });
-  await Promise.all([grow, pulse]);
 
-  // 6. (haptic found already fired at reveal)
-
-  // Theme word: Phase 5 celebration chains here (awaited hook).
+  // Theme word → run the celebration with input still locked.
   if (isTheme) await onThemeFound();
 
   // Completion?
   if (S.found.length === p.words.length && !S.won) {
-    await wait(500);
+    await wait(reduce ? 0 : 400);
     finish();
   }
 
   S.checking = false;
 }
 
-/* Phase 4→5 hook: runs after the success sequence for the THEME word only.
-   Phase 5 will replace the body with its switchable celebration. For now it
-   reveals the scheme colour, shows the category toast and fires the haptic. */
+/* ════════════════════════════════════════════════════════════════════════
+   PHASE 5 — THEME-WORD CELEBRATION (Stitch / Wind / Tie)
+   Runs after the Phase 4 success sequence for the theme word. Every variant
+   ends with the theme row in its scheme colour, the category toast and the
+   `theme` haptic. SVG overlay (#fx, viewport space) + WAAPI, no libraries.
+   ════════════════════════════════════════════════════════════════════════ */
 async function onThemeFound() {
-  showCategoryReveal();
+  await celebrate(S.settings.celebration);
+}
+
+/* Replayed from the Prototype menu on the current board. */
+async function replayCelebration() {
+  if (!document.querySelector(".found--theme")) return;
+  await celebrate(S.settings.celebration);
+}
+
+async function celebrate(style) {
+  const theme = document.querySelector(".found-bar.found--theme");
+  if (!theme) return;
+  if (prefersReducedMotion()) { await celReduced(theme); }
+  else if (style === "wind") { await celWind(); }
+  else if (style === "tie") { await celTie(); }
+  else { await celStitch(); }
+  fxReset();
+  toast("They're all " + puzzle().category.toLowerCase() + "!");
   haptic("theme");
-  await wait(400);
+}
+
+/* ── overlay + geometry helpers (viewport coordinates) ─────────────────── */
+function fxEl() { return document.getElementById("fx"); }
+function fxReset() {
+  const s = fxEl(); if (!s) return null;
+  s.innerHTML = "";
+  s.setAttribute("viewBox", "0 0 " + window.innerWidth + " " + window.innerHeight);
+  return s;
+}
+function mkNS(tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function barRects() {
+  const all = [...document.querySelectorAll(".found-bar")];
+  const theme = document.querySelector(".found-bar.found--theme");
+  return { theme, members: all.filter(b => b !== theme) };
+}
+function rectOf(elm) {
+  const r = elm.getBoundingClientRect();
+  return { x: r.left, y: r.top, w: r.width, h: r.height,
+           cx: r.left + r.width / 2, cy: r.top + r.height / 2,
+           right: r.right, bottom: r.bottom };
+}
+/* draw an SVG stroke in via a dash sweep; resolves when fully drawn */
+function drawStroke(svg, d, o = {}) {
+  const path = mkNS("path", { d, fill: "none",
+    stroke: o.color || "var(--thread-stroke)",
+    "stroke-width": o.width || 3, "stroke-linecap": "round", "stroke-linejoin": "round" });
+  svg.appendChild(path);
+  const len = path.getTotalLength() || 1;
+  path.style.strokeDasharray = o.dash || len;
+  path.style.strokeDashoffset = len;
+  const a = path.animate(
+    [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+    { duration: o.dur || 500, easing: o.easing || "ease-in-out", fill: "forwards" });
+  return { path, len, finished: a.finished.catch(() => {}) };
+}
+/* a glyph whose own bounding box is its transform origin (clean SVG scaling) */
+function fxGlyph(svg, cx, cy, d, fill) {
+  const g = mkNS("g", { transform: "translate(" + cx + " " + cy + ")" });
+  const path = mkNS("path", { d, fill });
+  path.style.transformBox = "fill-box";
+  path.style.transformOrigin = "center";
+  g.appendChild(path);
+  svg.appendChild(g);
+  return path;
+}
+
+/* ── reduced motion: colour settles in, no travel ─────────────────────── */
+async function celReduced(theme) {
+  await anim(theme, [{ opacity: 0.3 }, { opacity: 1 }],
+    { duration: 200, reduced: [{ opacity: 0.3 }, { opacity: 1 }] });
+}
+
+/* ── STITCH (default) ─────────────────────────────────────────────────── */
+async function celStitch() {
+  const svg = fxReset();
+  const { theme, members } = barRects();
+  const rows = [theme, ...members];
+
+  // 1. theme row pops + colour floods in from the left
+  theme.classList.remove("found--flood"); void theme.offsetWidth;
+  theme.classList.add("found--flood");
+  theme.addEventListener("animationend", () => theme.classList.remove("found--flood"), { once: true });
+  anim(theme, [
+    { transform: "scale(1)" }, { transform: "scale(1.06)", offset: 0.5 }, { transform: "scale(1)" }
+  ], { duration: 360, easing: "cubic-bezier(.34,1.8,.64,1)" });
+
+  // 2. a needle runs down the left edge, leaving a running-stitch thread
+  const tR = rectOf(theme);
+  const x = tR.x + 16;
+  const yTop = tR.cy;
+  const yBot = rows.length > 1 ? rectOf(rows[rows.length - 1]).cy : tR.bottom - 8;
+  const dur = Math.min(260 + members.length * 150, 820);
+  const stitch = drawStroke(svg, "M" + x + "," + yTop + " L" + x + "," + yBot,
+    { width: 2.5, dash: "4 5", dur: dur });
+  const needle = mkNS("circle", { cx: x, cy: yTop, r: 4.5, fill: "var(--thread-stroke)" });
+  svg.appendChild(needle);
+  needle.animate(
+    [{ transform: "translateY(0)" }, { transform: "translateY(" + (yBot - yTop) + "px)" }],
+    { duration: dur, easing: "ease-in-out", fill: "forwards" });
+
+  // 3. each row bounces slightly as the needle passes it
+  rows.forEach(row => {
+    const ry = rectOf(row).cy;
+    const t = (ry - yTop) / Math.max(yBot - yTop, 1);
+    setTimeout(() => anim(row, [
+      { transform: "scale(1)" }, { transform: "scale(1.03)", offset: 0.5 }, { transform: "scale(1)" }
+    ], { duration: 220, easing: "ease-out" }), Math.max(0, t * dur));
+  });
+  await stitch.finished;
+
+  // 4. the thread pulls taut: rows nudge towards the theme row and spring back
+  members.forEach(m => anim(m, [
+    { transform: "translateY(0)" },
+    { transform: "translateY(-4px)", offset: 0.5 },
+    { transform: "translateY(0)" }
+  ], { duration: 260, easing: "cubic-bezier(.34,1.8,.64,1)" }));
+
+  // 5. a tiny sparkle at the final stitch
+  sparkle(svg, x, yBot);
+  await wait(260);
+}
+
+/* ── WIND ─────────────────────────────────────────────────────────────── */
+async function celWind() {
+  const svg = fxReset();
+  const { theme, members } = barRects();
+  const spool = document.getElementById("spool");
+
+  // 1. the spool in the toolbar spins (two full turns)
+  if (spool) spool.animate(
+    [{ transform: "rotate(0)" }, { transform: "rotate(720deg)" }],
+    { duration: 900, easing: "cubic-bezier(.2,.7,.2,1)" });
+
+  // 2. a thread arcs from the spool down to the theme row
+  const sR = spool ? rectOf(spool) : { cx: window.innerWidth - 40, cy: 60 };
+  const tR = rectOf(theme);
+  const midx = (sR.cx + tR.cx) / 2;
+  const d = "M" + sR.cx + "," + sR.cy +
+            " Q" + (midx + 40) + "," + ((sR.cy + tR.cy) / 2) + " " + tR.cx + "," + tR.cy;
+  const arc = drawStroke(svg, d, { width: 3, dur: 520 });
+  await arc.finished;
+
+  // 3. diagonal stripes sweep across the theme row (scheme colour underneath)
+  await windStripes(svg, tR);
+
+  // 4. the row pops; found member rows do a quick sequential bounce
+  anim(theme, [
+    { transform: "scale(1)" }, { transform: "scale(1.06)", offset: 0.5 }, { transform: "scale(1)" }
+  ], { duration: 320, easing: "cubic-bezier(.34,1.8,.64,1)" });
+  members.forEach((m, i) => setTimeout(() => anim(m, [
+    { transform: "scale(1)" }, { transform: "scale(1.03)", offset: 0.5 }, { transform: "scale(1)" }
+  ], { duration: 200, easing: "ease-out" }), i * 70));
+  await wait(members.length * 70 + 240);
+}
+
+function windStripes(svg, tR) {
+  const clipId = "windclip";
+  const clip = mkNS("clipPath", { id: clipId });
+  clip.appendChild(mkNS("rect", { x: tR.x, y: tR.y, width: tR.w, height: tR.h, rx: 10 }));
+  svg.appendChild(clip);
+  const g = mkNS("g", { "clip-path": "url(#" + clipId + ")" });
+  svg.appendChild(g);
+  const n = Math.ceil(tR.w / 16) + 6;
+  for (let i = 0; i < n; i++) {
+    const sx = tR.x - tR.h + i * 16;
+    g.appendChild(mkNS("line", { x1: sx, y1: tR.bottom, x2: sx + tR.h, y2: tR.y,
+      stroke: "color-mix(in srgb,#fff 60%,transparent)", "stroke-width": 7 }));
+  }
+  const a = g.animate(
+    [{ transform: "translateX(-" + (tR.w + tR.h) + "px)", opacity: 1 },
+     { transform: "translateX(0)", opacity: 1, offset: 0.7 },
+     { transform: "translateX(0)", opacity: 0 }],
+    { duration: 520, easing: "ease-out", fill: "forwards" });
+  return a.finished.catch(() => {});
+}
+
+/* ── TIE ──────────────────────────────────────────────────────────────── */
+async function celTie() {
+  const svg = fxReset();
+  const { theme, members } = barRects();
+  const tR = rectOf(theme);
+
+  // 1. a curved thread draws from each member row towards the theme centre
+  //    (if none found yet, the bow ties directly onto the theme row)
+  const sources = members.length ? members.map(rectOf)
+    : [{ cx: tR.x + 24, cy: tR.cy }, { cx: tR.right - 24, cy: tR.cy }];
+  const draws = sources.map(s => {
+    const d = "M" + s.cx + "," + s.cy +
+      " Q" + ((s.cx + tR.cx) / 2) + "," + (s.cy + (tR.cy - s.cy) * 0.3 + 18) +
+      " " + tR.cx + "," + tR.cy;
+    return drawStroke(svg, d, { width: 2.5, dur: 420 }).finished;
+  });
+  await Promise.all(draws);
+
+  // 2. a bow/knot pops in at the join with overshoot
+  const bow = fxGlyph(svg, tR.cx, tR.cy, bowPath(), "var(--thread-stroke)");
+  bow.animate(
+    [{ transform: "scale(0)" }, { transform: "scale(1.2)", offset: 0.7 }, { transform: "scale(1)" }],
+    { duration: 300, easing: "cubic-bezier(.34,1.8,.64,1)", fill: "forwards" });
+
+  // 3. a small burst of thread snippets flies out and fades
+  tieBurst(svg, tR.cx, tR.cy);
+
+  // 4. the theme row pulses once
+  anim(theme, [
+    { transform: "scale(1)" }, { transform: "scale(1.05)", offset: 0.5 }, { transform: "scale(1)" }
+  ], { duration: 300, easing: "ease-out" });
+  await wait(380);
+}
+
+/* bow glyph centred on the origin (two loops + knot) */
+function bowPath() {
+  return "M0,0 C-14,-12 -22,6 -8,2 C-18,10 -4,12 0,2 " +
+         "C4,12 18,10 8,2 C22,6 14,-12 0,0 Z";
+}
+function tieBurst(svg, cx, cy) {
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2 + Math.random() * 0.4;
+    const len = 18 + Math.random() * 14;
+    const ex = cx + Math.cos(ang) * len, ey = cy + Math.sin(ang) * len;
+    const mx = (cx + ex) / 2 + (Math.random() - 0.5) * 10;
+    const my = (cy + ey) / 2 + (Math.random() - 0.5) * 10;
+    const s = mkNS("path", { d: "M" + cx + "," + cy + " Q" + mx + "," + my + " " + ex + "," + ey,
+      fill: "none", stroke: "var(--thread-stroke)", "stroke-width": 2, "stroke-linecap": "round" });
+    s.style.transformBox = "fill-box";
+    s.style.transformOrigin = "center";
+    svg.appendChild(s);
+    s.animate(
+      [{ opacity: 0, transform: "scale(.4)" },
+       { opacity: 1, transform: "scale(1)", offset: 0.4 },
+       { opacity: 0, transform: "scale(1.2)" }],
+      { duration: 480, easing: "ease-out", fill: "forwards", delay: 60 });
+  }
+}
+function sparkle(svg, x, y) {
+  const star = fxGlyph(svg, x, y,
+    "M0,-7 L1.8,-1.8 L7,0 L1.8,1.8 L0,7 L-1.8,1.8 L-7,0 L-1.8,-1.8 Z",
+    "var(--shimmer-gold,gold)");
+  star.animate(
+    [{ transform: "scale(0) rotate(0)", opacity: 0 },
+     { transform: "scale(1.2) rotate(40deg)", opacity: 1, offset: 0.5 },
+     { transform: "scale(0) rotate(90deg)", opacity: 0 }],
+    { duration: 420, easing: "ease-out", fill: "forwards" });
 }
 
 async function handleInvalidWord() {
@@ -1623,23 +1893,6 @@ async function handleInvalidWord() {
   renderWordPreview();
   drawThread();
 }
-
-/* ════════════════════════════════════════════════════════════════════════
-   CATEGORY REVEAL — golden shimmer across found rows
-   ════════════════════════════════════════════════════════════════════════ */
-function showCategoryReveal() {
-  if (!prefersReducedMotion()) {
-    const foundBlocks = document.querySelectorAll(".found-bar");
-    foundBlocks.forEach((block, i) => {
-      block.style.setProperty("--d", (i * 0.07) + "s");
-      block.classList.remove("block--shimmer");
-      void block.offsetWidth;
-      block.classList.add("block--shimmer");
-    });
-  }
-  toast("They're all " + puzzle().category.toLowerCase() + "!");
-}
-
 
 /* ════════════════════════════════════════════════════════════════════════
    CLOCK
@@ -1744,7 +1997,7 @@ function renderLevels() {
   });
 }
 
-const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
+const openSheet = () => { updateReplayBtn(); $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
 const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
 $("#menuBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
@@ -1786,6 +2039,11 @@ $("#set-scheme").onchange = e => {
 $("#set-celebration").onchange = e => {
   S.settings.celebration = e.target.value; saveSettings();
 };
+$("#replayBtn").onclick = () => { closeSheet(); replayCelebration(); };
+function updateReplayBtn() {
+  const b = $("#replayBtn");
+  if (b) b.hidden = !document.querySelector(".found--theme");
+}
 
 $("#sw-sound").onclick = e => {
   S.sound = !S.sound;
@@ -1800,6 +2058,7 @@ function resetRound() {
   clearGridNodes();
   if (traySlots) buildTray();
   initGrid();
+  updateReplayBtn();
 }
 
 /* streak */
