@@ -208,7 +208,7 @@ svg{display:block}
   align-items:center;width:100%;max-width:32rem;margin-inline:auto;padding:4px .5rem}
 .nav__l{display:flex;align-items:center;gap:.25rem;min-width:0}
 .nav__m{display:flex;justify-content:center}
-.nav__r{display:flex;justify-self:end}
+.nav__r{display:flex;justify-self:end;gap:.375rem}
 .timer{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;
   width:40px;height:40px;border-radius:25px;background:var(--muted);
@@ -248,6 +248,18 @@ svg{display:block}
 .block--dip{transform:translateY(3px) scale(.95)}
 @keyframes tileNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
 .block--nudge{animation:tileNudge .12s ease-out}
+/* ── Phase 6: hint badge (lightbulb in the tile's top-right corner) ─────── */
+.block{overflow:visible}
+.block__hint{position:absolute;top:3px;right:3px;width:13px;height:13px;
+  color:var(--foreground);pointer-events:none;transform-origin:center}
+.block__hint svg{display:block;width:100%;height:100%}
+@keyframes hintPop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.block__hint--pop{animation:hintPop .22s cubic-bezier(.34,1.56,.64,1) both}
+/* hint button: shake when there's nothing left to hint */
+@keyframes hintShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
+  40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+#hintBtn.iconbtn--shake{animation:hintShake .4s ease}
+#hintBtn:disabled{opacity:.4;pointer-events:none}
 
 .block--settle{animation:settle .35s ease-out}
 @keyframes settle{from{transform:translateY(-10px);opacity:.5}to{transform:none;opacity:1}}
@@ -474,6 +486,8 @@ svg{display:block}
   .block--pressed{transition:none}
   .block--dip{transform:translateY(3px)}
   .block--nudge{animation:none}
+  .block__hint--pop{animation:none}
+  #hintBtn.iconbtn--shake{animation:none}
   .wp-chip::after{transition:none}
 }
 
@@ -580,6 +594,9 @@ svg{display:block}
         </div>
         <div class="nav__m" id="mark-sm"></div>
         <div class="nav__r">
+          <button class="iconbtn" id="hintBtn" aria-label="Hint">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+          </button>
           <button class="iconbtn" id="menuBtn" aria-label="Settings">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
           </button>
@@ -929,6 +946,58 @@ function saveSettings() {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
+   HINTS (Phase 6) — persisted under "threads-hints", keyed by level date
+   ════════════════════════════════════════════════════════════════════════ */
+const HINTS_KEY = "threads-hints";
+function allHints() {
+  try { return JSON.parse(localStorage.getItem(HINTS_KEY)) || {}; } catch (e) { return {}; }
+}
+function loadHints() {
+  const stored = allHints()[S.date] || [];
+  // keep only hints whose tiles still exist on the current board
+  const ids = new Set();
+  for (const c of S.columns) for (const b of c) ids.add(b.id);
+  S.hints = stored.filter(h => h.ids.every(id => ids.has(id)));
+}
+function saveHints() {
+  const map = allHints();
+  if (S.hints.length) map[S.date] = S.hints; else delete map[S.date];
+  localStorage.setItem(HINTS_KEY, JSON.stringify(map));
+}
+function hintIds() {
+  const s = new Set();
+  for (const h of S.hints) for (const id of h.ids) s.add(id);
+  return s;
+}
+// decompose a word into one tile per column (left→right) from the live board;
+// returns [block0..block4] or null. Handles multi-letter tiles and duplicate
+// letters by trying each matching tile per column. `fixed` pins already-hinted
+// columns to a specific tile id so an extended hint stays on the same tiles.
+function decomposeWord(word, fixed = {}) {
+  const res = [];
+  const dfs = (c, pos) => {
+    if (c === 5) return pos === word.length;
+    const cands = fixed[c] != null ? S.columns[c].filter(b => b.id === fixed[c]) : S.columns[c];
+    for (const block of cands) {
+      if (word.startsWith(block.text, pos)) {
+        res[c] = block;
+        if (dfs(c + 1, pos + block.text.length)) return true;
+      }
+    }
+    return false;
+  };
+  return dfs(0, 0) ? res : null;
+}
+const fixedFromIds = ids => { const f = {}; ids.forEach((id, c) => f[c] = id); return f; };
+// build a selection ([{col,idx,block}]) for a hint's revealed prefix
+function selectPrefix(ids) {
+  return ids.map((id, c) => {
+    const idx = S.columns[c].findIndex(b => b.id === id);
+    return { col: c, idx, block: S.columns[c][idx] };
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
    ANIMATION HELPER (Phase 0.2) — promise-based, WAAPI
    ════════════════════════════════════════════════════════════════════════ */
 const prefersReducedMotion = () =>
@@ -995,7 +1064,8 @@ const S = {
   settings: Object.assign({}, SETTINGS_DEFAULTS),
   sound: true,
   checking: false,      // debounce word check
-  themeTied: false      // theme word found → knot ending has played
+  themeTied: false,     // theme word found → knot ending has played
+  hints: []             // [{word, ids:[col0Id, col1Id]}] active hints (Phase 6)
 };
 
 const $ = s => document.querySelector(s);
@@ -1059,6 +1129,8 @@ function renderGrid(opts = {}) {
   const totalFoundRows = S.foundBlocks.length;
   const activeRows = Math.max(...S.columns.map(c => c.length), 0);
   let rowCursor = 1;
+
+  const hintSet = hintIds();
 
   const seenFound = new Set();
   const seenActive = new Set();
@@ -1130,6 +1202,8 @@ function renderGrid(opts = {}) {
       node.className = cls;
       node.style.gridColumn = c + 1;
       node.style.gridRow = rowCursor + i;
+      // Phase 6: persistent lightbulb badge on a hinted tile
+      if (hintSet.has(block.id)) ensureHintBadge(node); else removeHintBadge(node);
     }
   }
 
@@ -1162,6 +1236,31 @@ function renderGrid(opts = {}) {
 
   // redraw the sewn thread for every found word at its live seam position
   GT.renderFound();
+  // persistent guide threads through hinted tiles — skipped for any hint the
+  // live selection already covers (the pick stitch is drawing it instead)
+  const hintGroups = [];
+  for (const h of S.hints) {
+    if (S.found.includes(h.word)) continue;
+    const covered = S.selection.length >= h.ids.length &&
+      h.ids.every((id, i) => S.selection[i] && S.selection[i].block.id === id);
+    if (covered) continue;
+    const tileEls = h.ids.map(id => nodeMap.get(id)).filter(Boolean);
+    if (tileEls.length === h.ids.length) hintGroups.push({ word: h.word, tileEls });
+  }
+  GT.renderHints(hintGroups);
+  updateHintBtn();
+}
+
+/* Phase 6: lightbulb badge helpers (child element on an active tile) */
+const HINT_BULB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.4-1.2.9-1.6A6 6 0 0 0 12 3z"/></svg>';
+function ensureHintBadge(node) {
+  if (node.querySelector(".block__hint")) return;
+  const b = el("span", "block__hint", HINT_BULB);
+  node.appendChild(b);
+}
+function removeHintBadge(node) {
+  const b = node.querySelector(".block__hint");
+  if (b) b.remove();
 }
 
 /* clear all keyed nodes (used on level reset) */
@@ -1311,6 +1410,27 @@ grid.addEventListener("pointerdown", e => {
 
   const col = +blockEl.dataset.col, idx = +blockEl.dataset.idx;
   const block = S.columns[col][idx];
+
+  // Phase 6: tapping the rightmost hinted tile of an unfound hint restores that
+  // hint's selection, so the player can resume from where the hint left off.
+  const resume = S.hints.find(h =>
+    !S.found.includes(h.word) && h.ids[h.ids.length - 1] === block.id);
+  if (resume) {
+    S.selection = selectPrefix(resume.ids);
+    haptic("select");
+    try { grid.setPointerCapture(e.pointerId); } catch {}
+    pressTile(blockEl);
+    dragging = true;
+    // committed, non-deferred drag so a tap keeps the restored prefix (no
+    // re-tap truncate) while a drag can still extend into the next column
+    drag = {
+      pointerId: e.pointerId, startId: block.id, startExistingIdx: resume.ids.length - 1,
+      isSelectedTile: false, moved: false, committed: true, locked: false
+    };
+    afterSelectionChange();
+    return;
+  }
+
   const nextCol = S.selection.length;
   const existingIdx = S.selection.findIndex(s => s.col === col);
   const isSelectedTile = existingIdx >= 0 && S.selection[existingIdx].block.id === block.id;
@@ -1408,6 +1528,87 @@ $("#shuffleBtn").onclick = () => { closeSheet(); shuffleColumns(); };
 function clearSelection() { S.selection = []; }
 
 /* ════════════════════════════════════════════════════════════════════════
+   HINTS (Phase 6) — reveal a word's tiles one connection at a time. The first
+   click reveals cols 1-2; each further click extends the SAME word (2-3, 3-4…)
+   up to four tiles. Hinted tiles keep a persistent guide thread so a player can
+   tap the rightmost hinted tile to resume a hint after trying another word.
+   ════════════════════════════════════════════════════════════════════════ */
+function updateHintBtn() {
+  const b = $("#hintBtn");
+  if (b) b.disabled = S.checking || S.won;
+}
+// a quick press-bounce on a tile (used when a hint lands); tiles are selected
+// so they already sit at translateY(3px)
+function pressBounce(node) {
+  if (!node || prefersReducedMotion()) return;
+  node.animate(
+    [{ transform: "translateY(3px) scale(1)" },
+     { transform: "translateY(5px) scale(.96)", offset: 0.4 },
+     { transform: "translateY(3px) scale(1)" }],
+    { duration: 220, easing: "cubic-bezier(.34,1.56,.64,1)" });
+}
+// reveal up to this many of a word's five columns (the last tile is always
+// left for the player to place)
+const HINT_MAX = 4;
+function doHint() {
+  if (S.checking || S.won) return;
+  const p = puzzle();
+  const unfound = p.words.filter(w => !S.found.includes(w));
+  // 1) extend the active hint — the most recent unfound word that still has
+  //    tiles left to reveal — so repeat clicks grow the SAME word (2-3, 3-4…)
+  const active = [...S.hints].reverse().find(h =>
+    unfound.includes(h.word) && h.ids.length < HINT_MAX);
+  if (active) {
+    const tiles = decomposeWord(active.word, fixedFromIds(active.ids));
+    const nextCol = active.ids.length;
+    if (tiles && tiles[nextCol]) {
+      active.ids.push(tiles[nextCol].id);
+      saveHints();
+      applyHint(active, [tiles[nextCol].id]);
+      return;
+    }
+  }
+  // 2) nothing to extend — start a new word. Random unfound member word without
+  //    an active hint; the theme word is only hintable once it's the last left.
+  const hinted = new Set(S.hints.map(h => h.word));
+  const eligible = unfound.filter(w =>
+    !hinted.has(w) && (w !== p.categoryWord || unfound.length === 1));
+  if (!eligible.length) {
+    const b = $("#hintBtn");
+    if (b) { b.classList.remove("iconbtn--shake"); void b.offsetWidth; b.classList.add("iconbtn--shake"); }
+    toast("Every word has a hint");
+    return;
+  }
+  const word = eligible[Math.floor(Math.random() * eligible.length)];
+  const tiles = decomposeWord(word);
+  if (!tiles) return;
+  const hint = { word, ids: [tiles[0].id, tiles[1].id] };
+  S.hints.push(hint);
+  saveHints();
+  applyHint(hint, hint.ids.slice());   // reveal cols 1 & 2
+}
+// select the hint's full revealed prefix, then pop the newly revealed badges
+function applyHint(hint, newIds) {
+  // a hint replaces any selection in progress
+  S.selection = selectPrefix(hint.ids);
+  haptic("hint");
+  afterSelectionChange();   // renders badges + selection, tray, and the GT stitch
+  requestAnimationFrame(() => {
+    for (const id of newIds) {
+      const node = nodeMap.get(id);
+      if (!node) continue;
+      const badge = node.querySelector(".block__hint");
+      if (badge && !prefersReducedMotion()) {
+        badge.classList.remove("block__hint--pop"); void badge.offsetWidth;
+        badge.classList.add("block__hint--pop");
+      }
+      pressBounce(node);
+    }
+  });
+}
+$("#hintBtn").onclick = doHint;
+
+/* ════════════════════════════════════════════════════════════════════════
    WORD CHECK — async sequences via the animation helper (Phase 0.2)
    S.checking blocks input for the whole sequence.
    ════════════════════════════════════════════════════════════════════════ */
@@ -1450,6 +1651,10 @@ async function handleValidWord(word) {
     for (const s of selCopy) { S.removed.add(s.block.id); nodeMap.delete(s.block.id); }
     S.foundBlocks.push(foundEntry);
     S.selection = [];
+    // drop any hint whose tiles were just consumed (badges go with the word)
+    const before = S.hints.length;
+    S.hints = S.hints.filter(h => !h.ids.some(id => S.removed.has(id)));
+    if (S.hints.length !== before) saveHints();
     initGrid();
     renderGrid({ flip: true });   // remaining tiles fall up (FLIP, ~250ms)
     renderWordPreview();
@@ -1478,6 +1683,7 @@ async function handleValidWord(word) {
   }
 
   S.checking = false;
+  updateHintBtn();
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1499,6 +1705,7 @@ const GT = (() => {
   let under = null, over = null, fx = null, overDefs = null, ready = false;
   let collapsing = null;           // word mid-collapse — its found thread is suppressed
   const threads = new Map();       // word -> { gu, gt, under, top, clips[5], kind }
+  const hintThreads = new Map();   // word -> persistent guide thread through hinted tiles
 
   const clamp = v => Math.max(0, Math.min(1, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -1610,7 +1817,57 @@ const GT = (() => {
   function clear() {
     for (const [, t] of threads) { t.gu.remove(); t.gt.remove(); if (t.clip) t.clip.remove(); if (t.holes) t.holes.g.remove(); }
     threads.clear();
+    clearHints();
     clearPick();
+  }
+
+  /* ── persistent hint guide: a faint, needle-less stitch kept through the
+     hinted tiles at all times, so a player can see (and tap back to) a hint
+     even after clicking off to try another word. Redrawn per renderGrid from
+     the live tile positions; hidden for a hint while the live pick stitch is
+     already drawing it. ─────────────────────────────────────────────────── */
+  function ensureHintThread(word) {
+    let h = hintThreads.get(word);
+    if (!h) {
+      const gu = mk("g", "gt-thread linen gt-hintthread"), gt = mk("g", "gt-thread linen gt-hintthread");
+      const u = mk("path", "gt-u"); gu.appendChild(u);
+      const cid = "gthint-" + word.replace(/[^A-Za-z0-9]/g, "");
+      const clip = mk("clipPath"); clip.setAttribute("id", cid);
+      const clips = [0, 1, 2, 3, 4].map(() => { const r = mk("rect"); clip.appendChild(r); return r; });
+      overDefs.appendChild(clip);
+      const tp = mk("path", "gt-t"); tp.setAttribute("clip-path", "url(#" + cid + ")"); gt.appendChild(tp);
+      under.appendChild(gu); over.appendChild(gt);
+      h = { gu, gt, under: u, top: tp, clip, clips, holes: holesGroup() };
+      hintThreads.set(word, h);
+    }
+    return h;
+  }
+  function renderHints(groups) {
+    if (!ready) return;
+    const seen = new Set();
+    for (const { word, tileEls } of (groups || [])) {
+      if (!tileEls || tileEls.length < 2) continue;
+      const h = ensureHintThread(word);
+      const holes = pickHoles(tileEls);
+      const d = pickPath(holes, false, cfg.slack * 0.6);
+      h.under.setAttribute("d", d); h.top.setAttribute("d", d);
+      holes.forEach((hole, i) => {
+        const band = hole.h * 0.4, r = h.clips[i];
+        r.setAttribute("x", hole.l); r.setAttribute("y", hole.y - band / 2);
+        r.setAttribute("width", Math.max(0, hole.r - hole.l + 0.5)); r.setAttribute("height", band);
+      });
+      for (let i = holes.length; i < 5; i++) { h.clips[i].setAttribute("width", 0); h.clips[i].setAttribute("height", 0); }
+      h.gu.setAttribute("opacity", 0.6); h.gt.setAttribute("opacity", 0.6);
+      drawHoles(h.holes, holes, true);
+      seen.add(word);
+    }
+    for (const [word, h] of hintThreads) {
+      if (!seen.has(word)) { h.gu.remove(); h.gt.remove(); if (h.clip) h.clip.remove(); if (h.holes) h.holes.g.remove(); hintThreads.delete(word); }
+    }
+  }
+  function clearHints() {
+    for (const [, h] of hintThreads) { h.gu.remove(); h.gt.remove(); if (h.clip) h.clip.remove(); if (h.holes) h.holes.g.remove(); }
+    hintThreads.clear();
   }
 
   /* ── live pick: a needle stitches the current selection in real time ──── */
@@ -1971,7 +2228,7 @@ const GT = (() => {
     await tieTogether();
   }
 
-  return { cfg, init, renderFound, clear, isReady: () => ready,
+  return { cfg, init, renderFound, renderHints, clear, isReady: () => ready,
            setPick, renderPick, snip, endPick, clearPick, collapseWord,
            tieTogether, tieIn, replayEnding, skip };
 })();
@@ -2170,7 +2427,9 @@ function resetRound() {
   clearGridNodes();
   if (traySlots) buildTray();
   initGrid();
+  loadHints();            // restore any persisted hint badges for this level
   updateReplayBtn();
+  updateHintBtn();
 }
 
 /* streak */

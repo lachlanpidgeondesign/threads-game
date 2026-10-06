@@ -10,7 +10,7 @@ Full detail for every phase is in `design/threads/SPEC.md`. This file tracks pro
 - [x] Phase 4: Correct-word success (timing follow-up is in Phase 5)
 - [x] Phase 5: Theme celebration — superseded by the Golden Thread (see below)
 - [x] Golden Thread: sewn-thread system replacing the Phase 3 thread, Phase 4 collapse and Phase 5 celebration
-- [ ] Phase 6: Hints
+- [x] Phase 6: Hints
 - [ ] Phase 7: Tutorial on the real engine
 
 ---
