@@ -8,34 +8,35 @@ Full detail for every phase is in `design/threads/SPEC.md`. This file tracks pro
 - [x] Phase 2: Tile press / tray rise
 - [x] Phase 3: Curved thread + drag
 - [x] Phase 4: Correct-word success (timing follow-up is in Phase 5)
-- [x] Phase 5: Theme celebration — all 3 styles, Phase 4 overlap/timing follow-up, replay button; reviewer PASS
+- [x] Phase 5: Theme celebration — superseded by the Golden Thread (see below)
+- [x] Golden Thread: sewn-thread system replacing the Phase 3 thread, Phase 4 collapse and Phase 5 celebration
 - [ ] Phase 6: Hints
 - [ ] Phase 7: Tutorial on the real engine
 
 ---
 
-## Phase 5: Theme celebration (+ Phase 4 follow-up)
+## Golden Thread (supersedes Phases 3–5 visuals)
 
-**First,** run `git log --oneline`. If a "Phase 5" commit already exists, don't rebuild it. Send it straight to the reviewer, fix what it finds, and tick it off.
+A single sewn-thread system now owns selection, collapse and the ending, ported
+from the behaviour of `golden-thread-reference.html` (tassel-knot ending only).
+It replaces the old curved selection thread (Phase 3), the scale/fade collapse
+and full-width found bars (Phase 4), and the Stitch/Wind/Tie celebration
+(Phase 5), which have all been removed.
 
-**Phase 4 follow-up (do first):**
-- Overlap the success steps. The collapse starts as the last tile lands, and the bar grows while the tiles collapse.
-- Release `S.checking` once the remaining tiles finish their FLIP fall-up. The ripple and pulse can finish after input unlocks.
-- For the theme word, input stays locked through the celebration.
-- Remove the dead `foundPop` render option and the `.block--found-pop` CSS.
+- Found words render as a compressed 5-tile seam with a persistent thread sewn
+  through holes in each tile face (theme = gold, members = linen). An amber
+  needle stitches the live selection as you tap/drag and parks at the tip as a
+  row-position marker.
+- Correct words pull their tiles up into the seam (right tile first, backOut
+  landing, slack springing taut); remaining tiles fall up at the same time.
+- The theme word gives a "found!" beat — its tiles flush gold and bounce
+  left→right — then every found thread ties into a tassel knot that hangs off
+  the right edge. Member words found after the theme tie in one at a time. Tap
+  the board to skip; the ••• menu has a "Replay ending" button.
+- Reduced motion: threads fade/snap, tiles go gold without the bounce, the knot
+  appears without travel.
 
-**Phase 5:**
-- All three styles (Stitch, Wind, Tie), chosen by the Prototype setting. Wind animates the spool in the HUD.
-- The celebration plugs into the `onThemeFound` hook and runs after the success sequence.
-- Add a "Replay celebration" button in the Prototype section of the ••• menu. It's hidden until the theme word is found and uses whichever member bars exist.
-- A member word found straight after the theme word waits until the celebration has fully finished, so nothing overlaps.
-
-**Done when:**
-- The measured input lock for a member word is about 800ms or less.
-- Each style works with 0, 2 and 4 member bars, in light and dark, and with reduced motion.
-- Each style finishes in 1.6s or less.
-
-🛑 CHECKPOINT: I'll try all three styles on my phone and pick one.
+🛑 CHECKPOINT: hand-tested on my phone across the iterations above.
 
 ---
 

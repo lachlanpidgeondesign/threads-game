@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Golden Thread prototype, collapse version</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#E9E6E1; --surface:#F7F5F1; --surface-found:#DDD8D0; --gold-tint:#F1DDBA; --edge:#CFC8BD;
+  --ink:#1D1B18; --muted:#6E665B; --amber:#B86E0E; --amber-deep:#8A520A;
+  --linen:#857B6D; --linen-deep:#B3AA9C; --needle:#5F5A53; --panel:#F2EFEA;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --canvas:#141312; --surface:#221F1C; --surface-found:#2E2A25; --gold-tint:#3A2B14; --edge:#36322C;
+    --ink:#EDE6DA; --muted:#9A9184; --amber:#F2A93B; --amber-deep:#9C6420;
+    --linen:#B4AB9D; --linen-deep:#5A534A; --needle:#D9D3C9; --panel:#1B1917;
+  }
+}
+:root[data-theme="dark"]{
+  --canvas:#141312; --surface:#221F1C; --surface-found:#2E2A25; --gold-tint:#3A2B14; --edge:#36322C;
+  --ink:#EDE6DA; --muted:#9A9184; --amber:#F2A93B; --amber-deep:#9C6420;
+  --linen:#B4AB9D; --linen-deep:#5A534A; --needle:#D9D3C9; --panel:#1B1917;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.5}
+main{max-width:1080px;margin:0 auto;padding:28px 20px 48px;display:grid;gap:28px}
+@media (min-width:880px){main{grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);align-items:start}}
+header{grid-column:1/-1}
+h1{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:clamp(2rem,4vw,2.8rem);line-height:1.05;margin:0 0 6px;color:var(--amber)}
+header p{margin:0;color:var(--muted);max-width:62ch}
+
+.stage{position:relative}
+svg#board{width:100%;height:auto;display:block;cursor:pointer;touch-action:manipulation}
+.caption{min-height:3.2em;margin:6px 0 0;text-align:center;font-family:'Fraunces',Georgia,serif;font-size:1.25rem}
+.caption .name{font-style:italic;color:var(--amber)}
+.caption .word{font-weight:700;letter-spacing:.04em}
+.caption .sub{display:block;font-family:'Hanken Grotesk',sans-serif;font-size:.85rem;color:var(--muted)}
+.skip-hint{position:absolute;top:0;right:8px;font-size:.78rem;color:var(--muted);opacity:0;transition:opacity .2s}
+.skip-hint.on{opacity:1}
+
+.block{transform-box:fill-box;transform-origin:center;transition:transform .14s ease-out}
+.block.dip{transform:scale(.93)}
+.block.pickable{cursor:pointer}
+.block.pickable:hover rect{stroke:var(--muted)}
+.block.sel rect{stroke:var(--ink);stroke-width:2.5}
+.block.sel text{fill:var(--amber)}
+.block rect{fill:var(--surface);stroke:var(--edge);stroke-width:1.5;transition:fill .3s,stroke .3s}
+.block text{fill:var(--ink);font-family:'Hanken Grotesk',sans-serif;font-weight:700;font-size:34px;text-anchor:middle;dominant-baseline:central;transition:fill .25s}
+.block .hole{fill:var(--canvas)}
+.block.lit-theme rect{stroke:var(--amber-deep)}
+.block.lit-theme text{fill:var(--amber)}
+.block.strip-theme rect{fill:var(--gold-tint)}
+.block.strip-word rect{fill:var(--surface-found)}
+.thread path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.thread.gold .under{stroke:var(--amber-deep);stroke-width:3}
+.thread.gold .top{stroke:var(--amber);stroke-width:3.5}
+.thread.linen .under{stroke:var(--linen-deep);stroke-width:2.5}
+.thread.linen .top{stroke:var(--linen);stroke-width:3}
+.needle path{fill:var(--needle)}
+.needle ellipse{fill:var(--canvas)}
+
+aside{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:20px;display:grid;gap:22px}
+aside h2{font-family:'Fraunces',Georgia,serif;font-weight:500;font-size:1.15rem;margin:0 0 10px}
+.words,.runs{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--edge);background:var(--surface);color:var(--ink);padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+button.theme{border-color:var(--amber-deep);color:var(--amber)}
+.runs button.primary{background:var(--amber);border-color:var(--amber);color:var(--canvas)}
+.slider{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin-bottom:12px}
+.slider label{font-size:.9rem}
+.slider output{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82rem;color:var(--muted)}
+.slider input{grid-column:1/-1;width:100%;accent-color:var(--amber)}
+.toggles{display:grid;gap:8px;font-size:.9rem}
+.toggles label{display:flex;gap:8px;align-items:center}
+.toggles input{accent-color:var(--amber);width:16px;height:16px;margin:0}
+fieldset{border:0;padding:0;margin:0}
+legend{font-family:'Fraunces',Georgia,serif;font-weight:500;font-size:1.15rem;margin:0 0 10px;padding:0}
+.total{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.85rem;color:var(--muted);margin:4px 0 0}
+.note{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Golden Thread</h1>
+    <p>Tap one tile per column, left to right, to spell a word. Tap a picked tile to undo back to it. Each word is stitched where it sits, then pulled up into a strip at the top. Finding the theme word ties every found thread together on the spot; later words tie in as they land. Tap the board to skip.</p>
+  </header>
+
+  <section class="stage">
+    <span class="skip-hint" id="skipHint">Tap to skip</span>
+    <svg id="board" viewBox="0 0 600 530" role="img" aria-label="Threads board with five hidden words">
+      <defs id="defs"></defs>
+      <g id="layerUnder"></g>
+      <g id="layerPreview"></g>
+      <g id="layerBlocks"></g>
+      <g id="layerPreviewTop"></g>
+      <g id="layerActiveUnder"></g>
+      <g id="layerActive"></g>
+      <g id="layerTop"></g>
+      <g id="layerNeedles"></g>
+      <g id="layerKnot"></g>
+    </svg>
+    <p class="caption" id="caption" aria-live="polite"><span class="sub">Tap one tile in each column, left to right.</span></p>
+  </section>
+
+  <aside>
+    <div>
+      <h2>Or find a word instantly</h2>
+      <div class="words" id="wordButtons"></div>
+      <p class="note">Birds is the theme word. The other four are its examples.</p>
+    </div>
+    <div>
+      <h2>Run a full solve</h2>
+      <div class="runs">
+        <button class="primary" id="runLast">Theme found last</button>
+        <button id="runFirst">Theme found first</button>
+        <button id="runMid">Theme found third</button>
+        <button id="reset">Reset board</button>
+      </div>
+    </div>
+    <fieldset class="toggles">
+      <legend>Ending</legend>
+      <label><input type="radio" name="ending" value="tassel" checked> Tassel knot on the right</label>
+      <label><input type="radio" name="ending" value="binding"> Gold binding down the left edge</label>
+    </fieldset>
+    <div>
+      <h2>Timing</h2>
+      <div class="slider"><label for="pace">Stitch pace, per tile</label><output id="paceOut"></output><input type="range" id="pace" min="80" max="500" step="10" value="180"></div>
+      <div class="slider"><label for="slack">Thread slack</label><output id="slackOut"></output><input type="range" id="slack" min="0" max="40" step="1" value="18"></div>
+      <div class="slider"><label for="pull">Pull and collapse</label><output id="pullOut"></output><input type="range" id="pull" min="200" max="1200" step="20" value="520"></div>
+      <div class="slider"><label for="stagger">Pull stagger, per tile</label><output id="staggerOut"></output><input type="range" id="stagger" min="0" max="90" step="5" value="35"></div>
+      <div class="slider"><label for="bounce">Landing bounce</label><output id="bounceOut"></output><input type="range" id="bounce" min="0" max="1" step="0.05" value="0.45"></div>
+      <div class="slider"><label for="knot">Ending duration</label><output id="knotOut"></output><input type="range" id="knot" min="300" max="1600" step="20" value="820"></div>
+      <p class="total" id="total"></p>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="reduced"> Reduced motion</label>
+      <label><input type="checkbox" id="haptics" checked> Haptics (Android browsers)</label>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const CELL = 80, GAP = 10, STEP = CELL + GAP, GX = 50, GY = 30;
+  const GW = 5 * STEP - GAP;        // grid width, 440
+  const SW = GW / 5;                // squashed tile width in a found strip, 88
+  const WORDS = ['BIRDS', 'ROBIN', 'EAGLE', 'HERON', 'RAVEN'];
+  const THEME = 0;
+  const ROWS = [[2,1,3,0,4],[0,3,1,4,2],[4,0,2,3,1],[1,4,0,2,3],[3,2,4,1,0]];
+  const TASSEL = { x: 566, y: GY + 2 * STEP + CELL * 0.8 };
+
+  const cfg = {
+    pace: 180, slack: 18, pull: 520, stagger: 35, bounce: 0.45, knot: 820,
+    ending: 'tassel',
+    reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    haptics: true
+  };
+
+  const $ = id => document.getElementById(id);
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+  const easeInOutCubic = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const backOut = (t, c1 = 1.9) => { const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+  const pullEase = t => backOut(t, 0.2 + cfg.bounce * 2);
+  const springSlack = k => Math.exp(-4 * k) * Math.cos(k * Math.PI * 0.5 * (1 + cfg.bounce * 8)) * (1 - k);
+  const buzz = p => { if (cfg.haptics && !skipping && navigator.vibrate) try { navigator.vibrate(p); } catch (e) {} };
+  const title = w => w[0] + w.slice(1).toLowerCase();
+
+  // ---------- tween engine ----------
+  const tweens = new Set();
+  let looping = false, skipping = false, running = 0, queue = Promise.resolve();
+  function tween(dur, fn) {
+    return new Promise(res => {
+      if (skipping || dur <= 0) { fn(1); res(); return; }
+      tweens.add({ start: performance.now(), dur, fn, res });
+      if (!looping) { looping = true; requestAnimationFrame(tick); }
+    });
+  }
+  const wait = ms => tween(ms, () => {});
+  function tick(now) {
+    for (const tw of [...tweens]) {
+      const t = Math.min(1, (now - tw.start) / tw.dur);
+      tw.fn(t);
+      if (t >= 1) { tweens.delete(tw); tw.res(); }
+    }
+    renderAll();
+    if (tweens.size) requestAnimationFrame(tick); else looping = false;
+  }
+  function skip() {
+    if (!running) return;
+    skipping = true;
+    for (const tw of [...tweens]) { tw.fn(1); tweens.delete(tw); tw.res(); }
+    renderAll();
+  }
+  function enqueue(fn) {
+    queue = queue.then(async () => {
+      running++; setHint();
+      try { await fn(); }
+      finally { running = Math.max(0, running - 1); if (!running) skipping = false; renderAll(); setHint(); }
+    });
+    return queue;
+  }
+  const setHint = () => $('skipHint').classList.toggle('on', running > 0 && !cfg.reduced);
+
+  // ---------- state ----------
+  let tiles = [], threads = [], binder = null, knot = null;
+  let found = new Set(), order = [], generation = 0;
+
+  function needleEl() {
+    const n = el('g', { class: 'needle', visibility: 'hidden' }, $('layerNeedles'));
+    el('path', { d: 'M15 0 L-11 -2.6 Q-17 0 -11 2.6 Z' }, n);
+    el('ellipse', { cx: -11, cy: 0, rx: 3, ry: 1 }, n);
+    return n;
+  }
+
+  function build() {
+    generation++;
+    tweens.clear(); looping = false; skipping = false; running = 0; queue = Promise.resolve();
+    found = new Set(); order = []; binder = null; tied = false; selection = [];
+    for (const id of ['defs','layerUnder','layerBlocks','layerPreview','layerPreviewTop','layerActiveUnder','layerActive','layerTop','layerNeedles','layerKnot']) $(id).innerHTML = '';
+    pk = makePick(); measurer = null; pickQueue = Promise.resolve();
+
+    tiles = WORDS.map((word, wi) => word.split('').map((ch, c) => {
+      const g = el('g', { class: 'block' }, $('layerBlocks'));
+      const rect = el('rect', {}, g);
+      const text = el('text', {}, g); text.textContent = ch;
+      const h1 = el('circle', { class: 'hole', r: 2.4 }, g);
+      const h2 = el('circle', { class: 'hole', r: 2.4 }, g);
+      const tile = { g, rect, text, h1, h2, lit: false, wi, c,
+        x: GX + c * STEP, y: GY + ROWS[wi][c] * STEP, w: CELL, h: CELL, rx: 11, inset: 15, dy: 0, dx: 0 };
+      g.addEventListener('click', () => pick(tile));
+      return tile;
+    }));
+
+    threads = WORDS.map((word, wi) => {
+      const clip = el('clipPath', { id: 'clip' + wi }, $('defs'));
+      const clips = [0,1,2,3,4].map(() => el('rect', {}, clip));
+      const kind = wi === THEME ? 'gold' : 'linen';
+      const gu = el('g', { class: 'thread ' + kind }, $('layerUnder'));
+      const gt = el('g', { class: 'thread ' + kind }, $('layerTop'));
+      return { wi, gu, gt, clips,
+        under: el('path', { class: 'under' }, gu),
+        top: el('path', { class: 'top', 'clip-path': `url(#clip${wi})` }, gt),
+        needle: needleEl(),
+        p: 0, slack: cfg.slack, opacity: 0, knotT: 0, retract: 0 };
+    });
+
+    const kg = el('g', { opacity: 0 }, $('layerKnot'));
+    const inner = el('g', {}, kg);
+    el('path', { d: 'M0 0 q14 -12 18 -2 q-4 9 -18 2 M0 0 q14 12 18 2', fill: 'none', stroke: 'var(--amber)', 'stroke-width': 3, 'stroke-linecap': 'round' }, inner);
+    el('path', { d: 'M2 2 q8 10 4 20 M1 3 q2 11 -6 18', fill: 'none', stroke: 'var(--amber)', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, inner);
+    el('circle', { r: 6.5, fill: 'var(--amber)', stroke: 'var(--canvas)', 'stroke-width': 2 }, inner);
+    knot = { g: kg, inner, s: 0, x: TASSEL.x, y: TASSEL.y, opacity: 0 };
+
+    setCaption('<span class="sub">Tap one tile in each column, left to right.</span>');
+    renderButtons();
+    renderAll();
+    setHint();
+  }
+
+  // Target layout: found strips stacked at the top in the order they landed,
+  // remaining tiles drop down in each column, keeping their relative order.
+  function targets() {
+    const T = WORDS.map(() => []);
+    order.forEach((wi, i) => {
+      for (let c = 0; c < 5; c++) T[wi][c] = { x: GX + c * SW, y: GY + i * STEP, w: SW, h: CELL, rx: 4, inset: 0 };
+    });
+    for (let c = 0; c < 5; c++) {
+      WORDS.map((_, wi) => wi).filter(wi => !order.includes(wi))
+        .sort((a, b) => tiles[a][c].y - tiles[b][c].y)
+        .forEach((wi, k) => T[wi][c] = { x: GX + c * STEP, y: GY + (order.length + k) * STEP, w: CELL, h: CELL, rx: 11, inset: 15 });
+    }
+    return T;
+  }
+
+  const holesOf = wi => tiles[wi].map(t => ({ l: t.x + t.inset, r: t.x + t.w - t.inset, y: t.y + t.dy + t.h * 0.8 }));
+
+  // ---------- rendering ----------
+  function renderTile(t) {
+    const y = t.y + t.dy, x = t.x + t.dx;
+    t.g.classList.toggle('pickable', !found.has(t.wi) && !running);
+    t.rect.setAttribute('x', x); t.rect.setAttribute('y', y);
+    t.rect.setAttribute('width', t.w); t.rect.setAttribute('height', t.h); t.rect.setAttribute('rx', t.rx);
+    t.text.setAttribute('x', x + t.w / 2); t.text.setAttribute('y', y + t.h * 0.42);
+    const hy = y + t.h * 0.8, o = (t.lit || t.g.classList.contains('sel')) ? 0.75 * clamp(t.inset / 15) : 0;
+    t.h1.setAttribute('cx', x + t.inset); t.h1.setAttribute('cy', hy); t.h1.style.opacity = o;
+    t.h2.setAttribute('cx', x + t.w - t.inset); t.h2.setAttribute('cy', hy); t.h2.style.opacity = o;
+  }
+
+  function threadD(t, holes) {
+    const s = t.slack, k = t.knotT, rt = t.retract;
+    const sx = GX - 38 * (1 - rt), sy = holes[0].y;
+    const ex = lerp(GX + GW + 22 * (1 - rt), TASSEL.x, k), ey = lerp(holes[4].y, TASSEL.y, k);
+    let d = `M${sx} ${sy}`, px = sx, py = sy;
+    const curve = (x, y, sag) => { d += ` Q${(px + x) / 2} ${(py + y) / 2 + sag} ${x} ${y}`; px = x; py = y; };
+    for (const h of holes) { curve(h.l, h.y, s); d += ` L${h.r} ${h.y}`; px = h.r; py = h.y; }
+    curve(ex, ey, s * (1 - k));
+    return d;
+  }
+
+  function renderThread(t) {
+    t.gu.setAttribute('opacity', t.opacity); t.gt.setAttribute('opacity', t.opacity);
+    if (t.opacity === 0) { t.needle.setAttribute('visibility', 'hidden'); return; }
+    const holes = holesOf(t.wi);
+    holes.forEach((h, c) => {
+      const r = t.clips[c];
+      r.setAttribute('x', h.l); r.setAttribute('y', h.y - 14);
+      r.setAttribute('width', Math.max(0, h.r - h.l + 0.5)); r.setAttribute('height', 28);
+    });
+    const d = threadD(t, holes);
+    t.under.setAttribute('d', d); t.top.setAttribute('d', d);
+    const L = t.under.getTotalLength();
+    for (const p of [t.under, t.top]) {
+      p.style.strokeDasharray = t.p < 1 ? `${L} ${L}` : 'none';
+      p.style.strokeDashoffset = t.p < 1 ? L * (1 - t.p) : 0;
+    }
+    let nx = Infinity;
+    if (t.p > 0 && t.p < 1) {
+      const at = L * t.p, a = t.under.getPointAtLength(at), b = t.under.getPointAtLength(Math.min(L, at + 2));
+      const over = holes.some(h => a.x >= h.l && a.x <= h.r);
+      t.needle.setAttribute('visibility', 'visible');
+      t.needle.setAttribute('transform', `translate(${a.x} ${a.y}) rotate(${Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI}) scale(${over ? 1 : 0.85})`);
+      t.needle.setAttribute('opacity', over ? 1 : 0.35);
+      nx = a.x;
+    } else t.needle.setAttribute('visibility', 'hidden');
+
+    holes.forEach((h, c) => {
+      const tile = tiles[t.wi][c];
+      if (!tile.lit && (t.p >= 1 || nx >= h.r - 1)) {
+        tile.lit = true;
+        if (t.wi === THEME) tile.g.classList.add('lit-theme');
+        buzz(t.wi === THEME ? 10 : 6);
+      }
+      tile.g.classList.toggle('dip', t.p < 1 && nx >= h.l - 8 && nx <= h.r + 8);
+    });
+  }
+
+  // Binding thread: a polyline whip-stitched around the left edge of the stack
+  function renderBinder() {
+    if (!binder) return;
+    const b = binder;
+    b.gu.setAttribute('opacity', b.opacity); b.gt.setAttribute('opacity', b.opacity);
+    const dist = b.total * b.p;
+    let acc = 0, d = `M${b.pts[0].x} ${b.pts[0].y}`, needleAt = null;
+    for (let i = 1; i < b.pts.length; i++) {
+      const a = b.pts[i - 1], c = b.pts[i], len = Math.hypot(c.x - a.x, c.y - a.y);
+      if (acc + len <= dist) { d += ` L${c.x} ${c.y}`; acc += len; continue; }
+      const f = (dist - acc) / len, x = lerp(a.x, c.x, f), y = lerp(a.y, c.y, f);
+      d += ` L${x} ${y}`;
+      needleAt = { x, y, ang: Math.atan2(c.y - a.y, c.x - a.x) * 180 / Math.PI, over: c.front };
+      break;
+    }
+    b.under.setAttribute('d', d); b.top.setAttribute('d', d);
+    if (needleAt && b.p < 1) {
+      b.needle.setAttribute('visibility', 'visible');
+      b.needle.setAttribute('transform', `translate(${needleAt.x} ${needleAt.y}) rotate(${needleAt.ang}) scale(${needleAt.over ? 1 : 0.85})`);
+      b.needle.setAttribute('opacity', needleAt.over ? 1 : 0.35);
+    } else b.needle.setAttribute('visibility', 'hidden');
+  }
+
+  // ---------- tile picking: a live needle stitches each tile as you tap it ----------
+  let selection = [], pk = null, pickQueue = Promise.resolve();
+  const PICK_SLACK = () => cfg.slack * 0.6;
+
+  function makePick() {
+    const clip = el('clipPath', { id: 'clipPick' }, $('defs'));
+    const gu = el('g', { class: 'thread linen' }, $('layerPreview'));
+    const gt = el('g', { class: 'thread linen' }, $('layerPreviewTop'));
+    return { gu, gt, clips: [0,1,2,3,4].map(() => el('rect', {}, clip)),
+      under: el('path', { class: 'under' }, gu),
+      top: el('path', { class: 'top', 'clip-path': 'url(#clipPick)' }, gt),
+      needle: needleEl(), list: [], len: 0, opacity: 1, drop: 0, needleOn: false };
+  }
+  const tileHoles = list => list.map(t => ({ l: t.x + t.dx + t.inset, r: t.x + t.dx + t.w - t.inset, y: t.y + t.dy + t.h * 0.8 }));
+  // same geometry as a finished word's thread, so the hand-off is seamless
+  function pickD(list) {
+    if (!list.length) return '';
+    const hs = tileHoles(list), s = PICK_SLACK();
+    let d = `M${GX - 38} ${hs[0].y}`, px = GX - 38, py = hs[0].y;
+    const curve = (x, y, sag) => { d += ` Q${(px + x) / 2} ${(py + y) / 2 + sag} ${x} ${y}`; px = x; py = y; };
+    for (const h of hs) { curve(h.l, h.y, s); d += ` L${h.r} ${h.y}`; px = h.r; py = h.y; }
+    if (list.length === 5) curve(GX + GW + 22, hs[4].y, s);
+    return d;
+  }
+  let measurer = null;
+  function lengthOf(d) {
+    if (!d) return 0;
+    if (!measurer || !measurer.isConnected) measurer = el('path', { visibility: 'hidden' }, $('defs'));
+    measurer.setAttribute('d', d);
+    return measurer.getTotalLength();
+  }
+
+  function renderPick() {
+    if (!pk) return;
+    const show = pk.list.length && pk.len > 0.5;
+    const op = show ? pk.opacity * (1 - pk.drop) : 0;
+    const tf = `translate(0 ${26 * pk.drop * pk.drop})`;
+    for (const g of [pk.gu, pk.gt]) { g.setAttribute('opacity', op); g.setAttribute('transform', tf); }
+    if (!show) { pk.needle.setAttribute('visibility', 'hidden'); return; }
+    const hs = tileHoles(pk.list);
+    pk.clips.forEach((r, i) => {
+      const h = hs[i];
+      r.setAttribute('x', h ? h.l : 0); r.setAttribute('y', h ? h.y - 14 : 0);
+      r.setAttribute('width', h ? h.r - h.l : 0); r.setAttribute('height', h ? 28 : 0);
+    });
+    const d = pickD(pk.list);
+    pk.under.setAttribute('d', d); pk.top.setAttribute('d', d);
+    const L = pk.under.getTotalLength(), len = Math.min(pk.len, L);
+    for (const p of [pk.under, pk.top]) { p.style.strokeDasharray = `${len} ${L + 50}`; p.style.strokeDashoffset = 0; }
+    let nx = -Infinity;
+    if (pk.needleOn && pk.drop === 0) {
+      const a = pk.under.getPointAtLength(Math.max(0, len - 2)), b = pk.under.getPointAtLength(len);
+      const over = hs.some(h => b.x >= h.l && b.x <= h.r);
+      pk.needle.setAttribute('visibility', 'visible');
+      pk.needle.setAttribute('transform', `translate(${b.x} ${b.y}) rotate(${Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI}) scale(${over ? 1 : 0.85})`);
+      pk.needle.setAttribute('opacity', (over ? 1 : 0.35) * pk.opacity);
+      nx = b.x;
+    } else pk.needle.setAttribute('visibility', 'hidden');
+    pk.list.forEach((t, i) => t.g.classList.toggle('dip', nx >= hs[i].l - 8 && nx <= hs[i].r + 8));
+  }
+
+  function setSel(list) {
+    selection.forEach(t => t.g.classList.remove('sel'));
+    selection = list;
+    selection.forEach(t => t.g.classList.add('sel'));
+  }
+  function clearPick() {
+    selection.forEach(t => t.g.classList.remove('dip'));
+    setSel([]);
+    if (pk) { pk.list = []; pk.len = 0; pk.opacity = 1; pk.drop = 0; pk.needleOn = false; }
+    renderAll();
+  }
+
+  // needle runs from the current tip, under the board, up through the new tile and back down
+  async function stitchTile(tile) {
+    const next = selection.concat(tile);
+    setSel(next);
+    pk.list = next; pk.needleOn = true;
+    const from = pk.len, to = lengthOf(pickD(next));
+    buzz(8);
+    await tween(cfg.reduced ? 0 : cfg.pace * (next.length === 5 ? 1.9 : 1.4), k => pk.len = lerp(from, to, easeInOutSine(k)));
+  }
+  // pull the stitch back out to an earlier tile
+  async function unstitchTo(n) {
+    const keep = selection.slice(0, n);
+    const from = pk.len, to = lengthOf(pickD(keep));
+    await tween(cfg.reduced ? 0 : 200 + 80 * (selection.length - n), k => pk.len = lerp(from, to, easeInOutCubic(k)));
+    selection.slice(n).forEach(t => t.g.classList.remove('dip'));
+    setSel(keep);
+    pk.list = keep; pk.len = to;
+  }
+  // wrong word: snip the thread, let it drop away
+  async function snip(list) {
+    pk.needleOn = false;
+    buzz(40);
+    await Promise.all([
+      nudge(list),
+      tween(cfg.reduced ? 0 : 420, k => pk.drop = k)
+    ]);
+    clearPick();
+  }
+
+  function pick(tile) {
+    pickQueue = pickQueue.then(() => doPick(tile)).catch(() => {});
+  }
+  async function doPick(tile) {
+    if (running || found.has(tile.wi)) return;
+    const gen = generation;
+    const idx = selection.indexOf(tile);
+    if (idx !== -1) {                                                    // tap a picked tile to unpick back to it
+      await unstitchTo(idx);
+      setCaption(selection.length ? `<span class="word">${selection.map(t => t.text.textContent).join('')}</span><span class="sub">${5 - selection.length} more tiles</span>` : '<span class="sub">Tap one tile in each column, left to right.</span>');
+      return;
+    }
+    if (tile.c > selection.length) {                                     // must go left to right
+      nudge([tile]);
+      setCaption(`<span class="sub">Pick a tile in column ${selection.length + 1} next.</span>`);
+      return;
+    }
+    if (tile.c < selection.length) await unstitchTo(tile.c);             // swapping a tile in an earlier column
+    if (gen !== generation) return;
+    await stitchTile(tile);
+    if (gen !== generation) return;
+
+    const letters = selection.map(t => t.text.textContent).join('');
+    if (selection.length < 5) {
+      setCaption(`<span class="word">${letters}</span><span class="sub">${5 - selection.length} more tile${selection.length === 4 ? '' : 's'}</span>`);
+      return;
+    }
+    // judge by the letters spelled, not by which tile was picked: if a column has
+    // two of the same letter, either one counts, and the tiles quietly swap owners
+    const wi = WORDS.findIndex((w, i) => w === letters && !found.has(i));
+    if (wi === -1) {
+      setCaption(`<span class="word">${letters}</span><span class="sub">Not one of today's threads.</span>`);
+      await snip(selection.slice());
+      return;
+    }
+    selection.forEach((tile, c) => {
+      if (tile.wi === wi) return;
+      const own = tiles[wi][c], other = tile.wi;
+      tiles[other][c] = own; own.wi = other;
+      tiles[wi][c] = tile; tile.wi = wi;
+    });
+    find(wi, true);
+  }
+
+  function nudge(list) {
+    buzz(40);
+    return new Promise(res => {
+      const t0 = performance.now(), D = cfg.reduced ? 0 : 320;
+      const step = now => {
+        const k = D ? Math.min(1, (now - t0) / D) : 1;
+        list.forEach(t => t.dx = 7 * Math.sin(k * Math.PI * 6) * (1 - k));
+        renderAll();
+        if (k < 1) requestAnimationFrame(step); else res();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  function renderAll() {
+    tiles.forEach(row => row.forEach(renderTile));
+    renderPick();
+    threads.forEach(renderThread);
+    renderBinder();
+    if (knot) {
+      knot.g.setAttribute('opacity', knot.opacity);
+      knot.inner.setAttribute('transform', `translate(${knot.x} ${knot.y}) scale(${Math.max(0, knot.s)})`);
+    }
+  }
+
+  function setCaption(html) { $('caption').innerHTML = html; }
+
+  // ---------- sequences ----------
+  async function stitch(wi, fromPick) {
+    const t = threads[wi], isTheme = wi === THEME;
+    tiles[wi].forEach(tile => $('layerActive').appendChild(tile.g));
+    if (fromPick) {
+      // hand the tapped thread over to the word's own thread; the theme word turns gold
+      t.p = 1; t.slack = PICK_SLACK(); pk.needleOn = false;
+      selection.forEach(tile => tile.g.classList.remove('sel', 'dip'));
+      if (isTheme && !cfg.reduced) await tween(380, k => { t.opacity = k; pk.opacity = 1 - k; });
+      else t.opacity = 1;
+      clearPick();
+      return;
+    }
+    if (cfg.reduced) { t.p = 1; t.slack = 0; return; }
+    t.opacity = 1; t.slack = cfg.slack * (isTheme ? 1 : 0.6); t.p = 0;
+    await tween(cfg.pace * (isTheme ? 6 : 4), k => t.p = isTheme ? easeInOutSine(k) : easeInOutCubic(k));
+  }
+
+  async function collapse(wi) {
+    const t = threads[wi];
+    order.push(wi);
+    const T = targets();
+    const from = tiles.map(row => row.map(tile => ({ x: tile.x, y: tile.y, w: tile.w, h: tile.h, rx: tile.rx, inset: tile.inset })));
+    const s0 = t.slack, st = cfg.stagger, D = cfg.reduced ? 0 : cfg.pull, total = D + 4 * st;
+    $('layerActiveUnder').appendChild(t.gu);
+    buzz(wi === THEME ? 28 : 14);
+    await tween(cfg.reduced ? 0 : total, k => {
+      const ms = k * total;
+      tiles.forEach((row, i) => row.forEach((tile, c) => {
+        const a = from[i][c], b = T[i][c];
+        // pulled from the right: the right-hand tile leaves first
+        const e = i === wi ? pullEase(clamp((ms - (4 - c) * st) / (D || 1))) : easeInOutCubic(clamp(ms / (total || 1)));
+        for (const key of ['x','y','w','h','rx','inset']) tile[key] = lerp(a[key], b[key], e);
+        if (k >= 1) Object.assign(tile, b);
+      }));
+      t.slack = k >= 1 ? 0 : s0 * springSlack(clamp(ms / (D || 1)));
+    });
+    tiles[wi].forEach(tile => {
+      tile.g.classList.add(wi === THEME ? 'strip-theme' : 'strip-word');
+      $('layerBlocks').appendChild(tile.g);
+    });
+    $('layerUnder').appendChild(t.gu);
+  }
+
+  let tied = false;
+
+  async function tug() {
+    if (cfg.reduced) return;
+    await tween(380, k => tiles[THEME].forEach(tile => tile.dy = 6 * Math.sin(k * Math.PI * 2) * (1 - k)));
+    tiles[THEME].forEach(tile => tile.dy = 0);
+  }
+  const pulseKnot = () => cfg.reduced ? null : tween(320, k => knot.s = 1 + 0.28 * Math.sin(Math.PI * k));
+  const popKnot = async () => {
+    knot.opacity = 1; buzz([18, 40, 26]);
+    if (cfg.reduced) { knot.s = 1; return; }
+    await tween(420, k => knot.s = backOut(k));
+  };
+  const retract = list => tween(cfg.reduced ? 0 : 300, k => list.forEach(t => t.retract = Math.max(t.retract, easeInOutCubic(k))));
+
+  // ---- tassel: thread ends sweep into a knot on the right ----
+  async function tasselTogether() {
+    knot.x = TASSEL.x; knot.y = TASSEL.y;
+    const list = order.map(i => threads[i]);
+    if (!cfg.reduced) await wait(120);
+    await tween(cfg.reduced ? 0 : cfg.knot, k => { const e = easeInOutCubic(k); list.forEach(t => t.knotT = e); });
+    await popKnot();
+  }
+  async function tasselTieIn(wi) {
+    const t = threads[wi];
+    await Promise.all([
+      tween(cfg.reduced ? 0 : cfg.knot * 0.6, k => t.knotT = easeInOutCubic(k)),
+      tug()
+    ]);
+    await pulseKnot();
+  }
+
+  // ---- binding: gold thread whip-stitches down the left edge of the stack ----
+  function binderPts(n) {
+    const L = GX - 15, R = GX + 16;
+    const pts = [{ x: GX - 34, y: GY - 16, front: false }];
+    for (let i = 0; i < n; i++) {
+      const y = GY + i * STEP;
+      pts.push({ x: L, y: y + 10, front: false }, { x: R, y: y + CELL - 10, front: true });
+    }
+    pts.push({ x: GX - 26, y: GY + (n - 1) * STEP + CELL + 16, front: false });
+    return pts;
+  }
+  const polyLen = (pts, upto = pts.length - 1) => {
+    let s = 0;
+    for (let i = 1; i <= upto; i++) s += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    return s;
+  };
+  async function binderTo(n) {
+    if (!binder) {
+      el('clipPath', { id: 'clipBinder' }, $('defs'));
+      const gu = el('g', { class: 'thread gold' }, $('layerUnder'));
+      const gt = el('g', { class: 'thread gold' }, $('layerTop'));
+      binder = { gu, gt, p: 0, opacity: 1, pts: [], total: 1,
+        under: el('path', { class: 'under' }, gu),
+        top: el('path', { class: 'top', 'clip-path': 'url(#clipBinder)' }, gt),
+        needle: needleEl() };
+    }
+    const pts = binderPts(n), total = polyLen(pts);
+    const prev = binder.pts.length && n > 1 ? polyLen(pts, 2 * n - 2) : 0;
+    const clip = $('clipBinder'); clip.innerHTML = '';
+    for (let i = 1; i < pts.length; i++) {
+      if (!pts[i].front) continue;
+      const a = pts[i - 1], b = pts[i], len = Math.hypot(b.x - a.x, b.y - a.y);
+      const nx = -(b.y - a.y) / len * 6, ny = (b.x - a.x) / len * 6;
+      el('polygon', { points: `${a.x + nx},${a.y + ny} ${b.x + nx},${b.y + ny} ${b.x - nx},${b.y - ny} ${a.x - nx},${a.y - ny}` }, clip);
+    }
+    // hide the old knot while the binding extends past it
+    if (knot.opacity > 0 && !cfg.reduced) await tween(140, k => knot.s = 1 - k);
+    binder.pts = pts; binder.total = total;
+    const start = prev / total;
+    binder.p = start;
+    const msPerPx = cfg.knot * 1.4 / polyLen(binderPts(5));
+    await tween(cfg.reduced ? 0 : (total - prev) * msPerPx, k => binder.p = lerp(start, 1, easeInOutSine(k)));
+    const end = pts[pts.length - 1];
+    knot.x = end.x; knot.y = end.y;
+    await popKnot();
+  }
+  async function bindingTogether() {
+    await retract(order.map(i => threads[i]));
+    await binderTo(order.length);
+  }
+  async function bindingTieIn(wi) {
+    await Promise.all([retract([threads[wi]]), tug()]);
+    await binderTo(order.length);
+  }
+
+  function find(wi, fromPick) {
+    if (found.has(wi)) return queue;
+    found.add(wi);
+    if (!fromPick) clearPick();
+    renderButtons();
+    const gen = generation;
+    return enqueue(async () => {
+      if (gen !== generation) return;
+      const t = threads[wi];
+      const binding = cfg.ending === 'binding';
+      await stitch(wi, fromPick);
+      if (gen !== generation) return;
+      await collapse(wi);
+      if (gen !== generation) return;
+      if (cfg.reduced) await tween(280, k => t.opacity = k);
+      const left = 5 - order.length;
+      const gold = `<span class="name">Golden Thread</span> <span class="word">${title(WORDS[THEME])}</span>`;
+
+      if (wi === THEME) {
+        // the Golden Thread pulls together everything found so far, right now
+        setCaption(order.length > 1 ? `${gold}<span class="sub">Pulling the threads together…</span>` : `${gold}<span class="sub">Every other word will tie into this one.</span>`);
+        await (binding ? bindingTogether() : tasselTogether());
+        tied = true;
+        if (gen !== generation) return;
+        if (left) setCaption(`${gold}<span class="sub">${left} more thread${left === 1 ? '' : 's'} to tie in.</span>`);
+      } else if (tied) {
+        await (binding ? bindingTieIn(wi) : tasselTieIn(wi));
+        if (gen !== generation) return;
+        if (left) setCaption(`<span class="word">${title(WORDS[wi])}</span><span class="sub">Tied into the Golden Thread.</span>`);
+      } else if (left) {
+        setCaption(`<span class="word">${title(WORDS[wi])}</span><span class="sub">${left} thread${left === 1 ? '' : 's'} to go.</span>`);
+      }
+
+      if (!left) {
+        if (wi !== THEME) { buzz([18, 40, 26]); await pulseKnot(); }
+        if (gen !== generation) return;
+        setCaption(`${gold}<span class="sub">All five threads tied.</span>`);
+      }
+    });
+  }
+  function script(seq) {
+    build();
+    const gen = generation;
+    seq.forEach((wi, i) => {
+      if (i > 0) enqueue(() => gen === generation ? wait(380) : null);
+      find(wi);
+    });
+  }
+
+  function renderButtons() {
+    const box = $('wordButtons');
+    box.innerHTML = '';
+    WORDS.forEach((w, wi) => {
+      const b = document.createElement('button');
+      b.textContent = title(w);
+      if (wi === THEME) b.className = 'theme';
+      b.disabled = found.has(wi);
+      b.addEventListener('click', () => find(wi));
+      box.appendChild(b);
+    });
+  }
+
+  // ---------- controls ----------
+  const fmt = { pace: v => `${v} ms`, slack: v => `${v} px`, pull: v => `${v} ms`, stagger: v => `${v} ms`, bounce: v => (+v).toFixed(2), knot: v => `${v} ms` };
+  function updateTotal() {
+    const word = cfg.pace * 4 + cfg.pull + 4 * cfg.stagger;
+    const theme = cfg.pace * 6 + cfg.pull + 4 * cfg.stagger;
+    $('total').textContent = `Word ${(word / 1000).toFixed(2)} s, theme ${(theme / 1000).toFixed(2)} s`;
+  }
+  Object.keys(fmt).forEach(k => {
+    const input = $(k), out = $(k + 'Out');
+    const sync = () => { cfg[k] = +input.value; out.textContent = fmt[k](input.value); updateTotal(); };
+    input.addEventListener('input', sync); sync();
+  });
+  document.querySelectorAll('input[name="ending"]').forEach(r => r.addEventListener('change', e => cfg.ending = e.target.value));
+  $('reduced').checked = cfg.reduced;
+  $('reduced').addEventListener('change', e => { cfg.reduced = e.target.checked; setHint(); });
+  $('haptics').addEventListener('change', e => cfg.haptics = e.target.checked);
+  $('runLast').addEventListener('click', () => script([1, 2, 3, 4, 0]));
+  $('runFirst').addEventListener('click', () => script([0, 1, 2, 3, 4]));
+  $('runMid').addEventListener('click', () => script([2, 4, 0, 1, 3]));
+  $('reset').addEventListener('click', build);
+  $('board').addEventListener('click', skip);
+
+  build();
+})();
+</script>
+</body>
+</html>
