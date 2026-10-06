@@ -8,7 +8,7 @@ Full detail for every phase is in `design/threads/SPEC.md`. This file tracks pro
 - [x] Phase 2: Tile press / tray rise
 - [x] Phase 3: Curved thread + drag
 - [x] Phase 4: Correct-word success (timing follow-up is in Phase 5)
-- [ ] Phase 5: Theme celebration
+- [x] Phase 5: Theme celebration — all 3 styles, Phase 4 overlap/timing follow-up, replay button; reviewer PASS
 - [ ] Phase 6: Hints
 - [ ] Phase 7: Tutorial on the real engine
 
@@ -68,3 +68,7 @@ Full detail for every phase is in `design/threads/SPEC.md`. This file tracks pro
 ---
 
 ## Decisions to confirm
+
+From Phase 5 review:
+- ❓ Spool icon added to the HUD toolbar is always visible for all three styles, not just Wind — keep it that way or hide it unless Wind is selected?
+- ❓ The Replay celebration button is not gated by `S.checking`, so it can re-trigger a celebration mid-animation — should it be disabled while a celebration/check is running?
