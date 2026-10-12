@@ -1,0 +1,2536 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Threads</title>
+
+<style>
+@font-face{font-family:"Inter";src:url("https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2") format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Literata";src:url("https://fonts.gstatic.com/s/literata/v40/or3hQ6P12-iJxAIgLYTwJrUXnTPm.woff2") format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+
+/* ── tenant theme ─────────────────────────────────────────────────────── */
+:root{
+  --background:oklch(1 0 0); --foreground:oklch(0 0 0);
+  --card:oklch(0.9158 0 89.9); --popover:oklch(0.98 0 0);
+  --primary:oklch(0.448 0.1751 259.2); --secondary:oklch(0.3211 0 89.9);
+  --muted:oklch(0.97 0 0); --muted-foreground:oklch(0.32 0 0);
+  --accent:oklch(0.448 0.1751 259.2);
+  --destructive:oklch(0.5505 0.2155 25);
+  --border:oklch(0.85 0 0); --ring:oklch(0.448 0.1751 259.2);
+  --radius:0.625rem;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-heading:"Literata",system-ui,sans-serif;
+  --font-heading-weight:700;
+  --game-color-connect-surface:oklch(0.7456 0.1326 278.4);
+  --game-guessr-surface:oklch(0.871 0.0965 77.7);
+}
+:root.dark{
+  --background:oklch(0.15 0.01 0); --foreground:oklch(1 0 0);
+  --card:oklch(0.2 0.01 0); --popover:oklch(0.23 0.01 0);
+  --muted:oklch(0.269 0 0); --muted-foreground:oklch(0.745 0 0);
+  --border:oklch(0.3 0.01 0); --ring:oklch(0.448 0.1751 259.2);
+  --destructive:oklch(0.65 0.25 25);
+}
+
+/* ── Threads triad ────────────────────────────────────────────────────── */
+:root{
+  --game-threads-surface:oklch(0.871 0.0965 77.7);
+  --game-threads-detail:oklch(0.412 0.0714 76);
+  --game-threads-accent:oklch(0.7939 0.1467 74.2);
+  --game-threads-on-surface:oklch(0 0 0);
+  --game-threads-on-detail:oklch(1 0 0);
+  --game-threads-on-accent:oklch(0 0 0);
+}
+:where(:root){
+  --_surface:var(--game-threads-surface); --_detail:var(--game-threads-detail);
+  --_accent:var(--game-threads-accent);   --_on-detail:var(--game-threads-on-detail);
+  --_on-accent:var(--game-threads-on-accent);
+}
+:where(:root){
+  /* Phase 1b: near-white page, pale Orange-50 band behind the HUD only */
+  --nav-band:var(--or-50);
+  --root-tint:oklch(0.985 0 0);
+}
+:root.dark{
+  /* dark mode unchanged — restore the original tinted derivations */
+  --nav-band:color-mix(in oklch,var(--_surface) 50%,transparent);
+  --root-tint:color-mix(in srgb,var(--_surface) 30%,var(--background));
+}
+
+/* ── tokens: formerly hard-coded values (Phase 0.5) ───────────────────── */
+:root{
+  /* ink — near-black for start button + toast */
+  --c-ink:oklch(0.19 0 0);
+  /* block surfaces + chunky shadow stack */
+  --block-bg:oklch(0.96 0 0);
+  --block-bg-down:oklch(0.86 0 0);
+  --block-border:oklch(0.88 0 0);
+  --block-border-strong:oklch(0.72 0 0);
+  --block-shadow:oklch(0.78 0 0);
+  /* Phase 2: tray panel + recessed sockets */
+  --tray-bg:oklch(0.93 0 0);
+  --slot-bg:oklch(0.89 0 0);
+  --slot-inset:oklch(0 0 0/.16);
+  /* thread feedback */
+  --thread-valid:oklch(0.55 0.18 145);
+  /* category reveal glow */
+  --shimmer-gold:oklch(0.85 0.14 80);
+}
+:root.dark{
+  /* dark-mode block overrides */
+  --block-bg:oklch(0.25 0 0);
+  --block-bg-down:oklch(0.36 0 0);
+  --block-border:oklch(0.32 0 0);
+  --block-border-strong:oklch(0.45 0 0);
+  --block-shadow:oklch(0.18 0 0);
+  --tray-bg:oklch(0.22 0 0);
+  --slot-bg:oklch(0.16 0 0);
+  --slot-inset:oklch(0 0 0/.45);
+}
+
+/* ── Phase 1: brand palette ───────────────────────────────────────────── */
+:root{
+  --um-900:#12102E;--um-800:#24205C;--um-700:#352F8A;--um-600:#473FB8;--um-500:#594FE6;
+  --um-400:#7A72EB;--um-300:#9B95F0;--um-200:#BDB9F5;--um-100:#DEDCFA;--um-50:#EEEDFC;
+  --or-900:#31220C;--or-800:#614518;--or-700:#926725;--or-600:#C28A31;--or-500:#F3AC3D;
+  --or-400:#F5BD64;--or-300:#F8CD8B;--or-200:#FADEB1;--or-100:#FDEED8;--or-50:#FEF7EC;
+  --gr-900:#00291F;--gr-800:#00523F;--gr-700:#007A5E;--gr-600:#00A37E;--gr-500:#00CC9D;
+  --gr-400:#33D6B1;--gr-300:#66E0C4;--gr-200:#99EBD8;--gr-100:#CCF5EB;--gr-50:#E5FAF5;
+  --pu-900:#111433;--pu-800:#222866;--pu-700:#343D99;--pu-600:#4551CC;--pu-500:#5665FF;
+  --pu-400:#7884FF;--pu-300:#9AA3FF;--pu-200:#BBC1FF;--pu-100:#DDE0FF;--pu-50:#EEF0FF;
+  --bl-900:#0B2427;--bl-800:#16484E;--bl-700:#216B76;--bl-600:#2C8F9D;--bl-500:#37B3C4;
+  --bl-400:#5FC2D0;--bl-300:#87D1DC;--bl-200:#AFE1E7;--bl-100:#D7F0F3;--bl-50:#EBF7F9;
+  --pk-900:#2A0A19;--pk-800:#541332;--pk-700:#7F1D4B;--pk-600:#A92664;--pk-500:#D3307D;
+  --pk-400:#DC5997;--pk-300:#E583B1;--pk-200:#EDACCB;--pk-100:#F6D6E5;--pk-50:#FBEAF2;
+
+  /* near-black used for selected tiles + thread (Phase 1) */
+  --ink-900:#242424;
+
+  /* tutorial prompt pills (same in every scheme; used in Phase 7) */
+  --prompt-pill:var(--or-500);
+
+  /* ── semantic scheme tokens (default = A. Brand contrast, light) ─────── */
+  --found-member-bg:var(--or-100);   --found-member-fg:var(--or-800);
+  --found-theme-bg:var(--um-500);    --found-theme-fg:#fff;
+  --found-theme-ring:var(--um-700);
+  --tile-sel-bg:var(--ink-900);      --tile-sel-fg:#fff;
+  --thread-stroke:var(--ink-900);
+}
+
+/* B. Rainbow members — member colour by discovery order; theme = Orange 500 */
+:root[data-scheme="rainbow"]{
+  --found-theme-bg:var(--or-500);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-700);
+}
+/* C. Ultramarine members */
+:root[data-scheme="ultramarine"]{
+  --found-member-bg:var(--um-100);   --found-member-fg:var(--um-800);
+  --found-theme-bg:var(--or-500);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-700);
+}
+
+/* ── Dark-mode conversion (fills 500→300, pale→#242424) per scheme ────── */
+:root.dark{
+  /* pale surface -> near-black */
+  --tile-sel-bg:#EDEDF2;             --tile-sel-fg:var(--ink-900);
+  --thread-stroke:#EDEDF2;
+  /* member rows: pale 100 is too bright on dark — use 800 fill / 200 text */
+  --found-member-bg:var(--or-800);   --found-member-fg:var(--or-200);
+  /* theme: 500 -> 300, text flips dark for contrast on the lighter fill */
+  --found-theme-bg:var(--um-300);    --found-theme-fg:var(--um-900);
+  --found-theme-ring:var(--um-500);
+}
+:root.dark[data-scheme="rainbow"]{
+  --found-theme-bg:var(--or-300);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-500);
+}
+:root.dark[data-scheme="ultramarine"]{
+  --found-member-bg:var(--um-800);   --found-member-fg:var(--um-200);
+  --found-theme-bg:var(--or-300);    --found-theme-fg:var(--or-900);
+  --found-theme-ring:var(--or-500);
+}
+
+/* ── base ─────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overscroll-behavior:none}
+body{
+  font-family:var(--font-body);font-weight:500;
+  background:var(--root-tint);color:var(--foreground);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+/* the hidden attribute must win over component display rules (e.g. .btn) */
+[hidden]{display:none!important}
+
+#app{
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  text-align:center;position:relative;overflow-x:hidden;
+}
+.screen{display:none;width:100%;flex:1;flex-direction:column;align-items:center}
+.screen.on{display:flex}
+.content{width:100%;max-width:25rem;margin-inline:auto;padding:1rem 1rem 5rem;
+  display:flex;flex-direction:column;align-items:center;gap:.75rem}
+
+/* ── type ─────────────────────────────────────────────────────────────── */
+.display{font-family:var(--font-heading);font-weight:900;font-size:2.25rem;line-height:1.1;color:var(--_detail)}
+.h1{font-family:var(--font-heading);font-weight:700;font-size:1.875rem;line-height:1.2}
+.h2{font-size:1.125rem;font-weight:700}
+.lede{font-size:1.0625rem;line-height:1.55}
+.small{font-size:.875rem}
+.muted{color:var(--muted-foreground)}
+.eyebrow{font-family:var(--font-heading);font-weight:700;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.05em}
+.figure{font-family:var(--font-heading);font-weight:700;font-size:2.25rem;
+  font-variant-numeric:tabular-nums;line-height:1}
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  font-size:1rem;font-weight:700;padding:.875rem 1.5rem;border-radius:999px;
+  border:1px solid transparent;transition:all .2s}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
+.btn--start{background:var(--c-ink);color:#fff}
+.btn--primary{background:var(--_detail);color:var(--_on-detail)}
+.btn--outline{background:var(--background);color:var(--foreground);border-color:var(--border)}
+.btn--block{width:100%}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btnrow{display:flex;gap:.75rem;width:100%}
+.textbtn{font-weight:500;color:var(--muted-foreground);display:inline-flex;
+  align-items:center;gap:.375rem;padding:.5rem}
+
+/* ── nav ──────────────────────────────────────────────────────────────── */
+.navband{position:relative;isolation:isolate;width:100%}
+.navband::before{content:"";position:absolute;inset:0;left:-100vw;right:-100vw;
+  z-index:-1;background:var(--nav-band);border-bottom:1px solid var(--_surface)}
+.nav{position:relative;z-index:40;display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:center;width:100%;max-width:32rem;margin-inline:auto;padding:4px .5rem}
+.nav__l{display:flex;align-items:center;gap:.25rem;min-width:0}
+.nav__m{display:flex;justify-content:center}
+.nav__r{display:flex;justify-self:end;gap:.375rem}
+.timer{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:25px;background:var(--muted);
+  border:1px solid var(--_surface);transition:all .2s}
+.iconbtn:active{transform:scale(.95)}
+.iconbtn--bare{background:none;border:0;width:34px;height:34px}
+
+/* ── grid ─────────────────────────────────────────────────────────────── */
+.grid-wrap{position:relative;width:100%}
+.tgrid{display:grid;grid-template-columns:repeat(5,1fr);
+  gap:10px;padding:6px;
+  /* Phase 3: own the gesture so tap+drag works and the thread can layer
+     between unselected and selected tiles (no stacking context here) */
+  touch-action:none;user-select:none}
+.block{background:var(--block-bg);display:grid;place-items:center;
+  min-height:3.5rem;font-family:var(--font-body);font-weight:700;
+  font-size:clamp(.875rem,4.2vw,1.2rem);color:var(--foreground);
+  cursor:pointer;position:relative;
+  border-radius:10px;
+  border:1px solid var(--block-border);
+  box-shadow:0 4px 0 var(--block-shadow),0 4px 8px oklch(0 0 0/.08);
+  /* slow overshoot on release (spring-up ~160ms) */
+  transition:background .15s,transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .16s}
+/* pressed = pointer held on a selectable tile (fast press-down ~80ms ease-out) */
+.block--pressed{transform:translateY(3px);background:var(--block-bg-down);
+  box-shadow:0 1px 0 var(--block-shadow),0 1px 2px oklch(0 0 0/.06);
+  transition:transform .08s ease-out,box-shadow .08s ease-out,background .08s ease-out}
+.block--selected{background:var(--block-bg-down);color:var(--foreground);
+  border-color:var(--block-border-strong);
+  transform:translateY(3px);
+  /* darkened + recessed so a picked tile reads clearly; the sewn thread + needle
+     still sit on top of the face */
+  box-shadow:0 1px 0 var(--block-shadow),0 1px 2px oklch(0 0 0/.06)}
+.block--available{background:var(--block-bg);
+  border-color:var(--block-border-strong)}
+/* needle dip as it crosses a tile (composes with the pressed/selected shift) */
+.block--dip{transform:translateY(3px) scale(.95)}
+@keyframes tileNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
+.block--nudge{animation:tileNudge .12s ease-out}
+/* ── Phase 6: hint badge (lightbulb in the tile's top-right corner) ─────── */
+.block{overflow:visible}
+.block__hint{position:absolute;top:3px;right:3px;width:13px;height:13px;
+  color:var(--foreground);pointer-events:none;transform-origin:center}
+.block__hint svg{display:block;width:100%;height:100%}
+@keyframes hintPop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.block__hint--pop{animation:hintPop .22s cubic-bezier(.34,1.56,.64,1) both}
+/* hint button: shake when there's nothing left to hint */
+@keyframes hintShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
+  40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+#hintBtn.iconbtn--shake{animation:hintShake .4s ease}
+#hintBtn:disabled{opacity:.4;pointer-events:none}
+
+.block--settle{animation:settle .35s ease-out}
+@keyframes settle{from{transform:translateY(-10px);opacity:.5}to{transform:none;opacity:1}}
+
+/* found word row separator */
+.grid-divider{grid-column:1/-1;height:2px;
+  background:var(--border);border-radius:1px;margin:2px 0}
+
+/* ── Golden Thread — sewn thread system ───────────────────────────────── */
+:root{
+  --gt-gold:#B86E0E;   --gt-gold-deep:#8A520A;
+  --gt-linen:#857B6D;  --gt-linen-deep:#B3AA9C;
+  --gt-needle:#5F5A53;
+  /* stylised sewing needle — amber body + warm brown outline, matching the
+     Threads spool icon */
+  --gt-needle-fill:#F3AC3D;  --gt-needle-stroke:#926725;
+  /* found seams stay on the cool board palette; the theme (golden thread) word
+     gets a warm gold tint to match its gold thread */
+  --gt-seam-word:oklch(0.90 0 0);  --gt-seam-theme:#F6E6C4;
+}
+:root.dark{
+  --gt-gold:#F2A93B;   --gt-gold-deep:#9C6420;
+  --gt-linen:#B4AB9D;  --gt-linen-deep:#5A534A;
+  --gt-needle:#D9D3C9;
+  --gt-needle-fill:#F2A93B;  --gt-needle-stroke:#4A330F;
+  --gt-seam-word:oklch(0.20 0 0);  --gt-seam-theme:#3A2B14;
+}
+/* stacking: under thread behind tiles, over thread (clipped to faces) above */
+.block{z-index:1}
+.gt{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.gt-under{z-index:0}
+.gt-over{z-index:2}
+.gt-fx{z-index:3}
+.gt-thread path{fill:none;stroke-linecap:round;stroke-linejoin:round;
+  /* keep strokes a constant device width so they don't go hairline-thin when
+     the SVG viewBox is scaled down on small screens */
+  vector-effect:non-scaling-stroke}
+.gt-thread.gold .gt-u{stroke:var(--gt-gold-deep);stroke-width:4.5}
+.gt-thread.gold .gt-t{stroke:var(--gt-gold);stroke-width:5}
+.gt-thread.linen .gt-u{stroke:var(--gt-linen-deep);stroke-width:4}
+.gt-thread.linen .gt-t{stroke:var(--gt-linen);stroke-width:4.5}
+.gt-needle .gt-needle-body{fill:var(--background);stroke:var(--foreground);
+  stroke-width:1.4;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.gt-needle .gt-needle-eye{fill:var(--foreground)}
+.gt-knot path,.gt-knot circle{vector-effect:non-scaling-stroke}
+/* a collapsing tile detached from the grid, flying up into the seam */
+.gt-fly{position:absolute;margin:0;min-height:0;box-sizing:border-box;z-index:1;
+  pointer-events:none}
+/* theme 'found!' beat: the collapsing golden-thread tiles flush gold and bounce
+   once (rippling left→right) before they lift into the seam */
+.gt-fly--found{background:var(--gt-seam-theme);border-color:var(--gt-gold);
+  transition:background .34s ease,border-color .34s ease}
+@keyframes gtFoundPop{0%{transform:scale(1)}40%{transform:scale(1.09)}
+  66%{transform:scale(.97)}100%{transform:scale(1)}}
+.gt-fly--pop{animation:gtFoundPop .46s cubic-bezier(.34,1.56,.64,1) both}
+/* theme thread crossfades linen → gold before the pull */
+.gt-thread--xfade .gt-u,.gt-thread--xfade .gt-t{transition:stroke .38s ease}
+/* pierce points where the thread passes through the tile face */
+.gt-hole{fill:var(--background);transition:opacity .12s ease}
+/* live-stitch feedback tints */
+.gt-thread--valid .gt-u{stroke:var(--gt-gold-deep)}
+.gt-thread--valid .gt-t{stroke:var(--gt-gold)}
+.gt-thread--invalid .gt-u,.gt-thread--invalid .gt-t{stroke:var(--destructive)}
+/* found word = a compressed 5-tile seam the thread is sewn through. A small
+   gap + rounded tiles space the tiles out; the thread dips through the gaps
+   (the under-strand shows there) and runs across each tile face, so the stitch
+   reads as poking up and back down through every tile. */
+.gt-seam{grid-column:1 / -1;display:flex;align-items:stretch;justify-content:center;
+  gap:5px;min-height:3.5rem;position:relative;z-index:1;pointer-events:none;cursor:default;
+  padding-inline:18px}
+.gt-seam-tile{flex:1 1 0;display:grid;place-items:center;position:relative;
+  font-family:var(--font-body);font-weight:700;letter-spacing:.02em;
+  font-size:clamp(.875rem,4.2vw,1.2rem);color:var(--foreground);
+  border-radius:7px;
+  background:var(--gt-seam-word);border:1px solid var(--block-border)}
+.gt-seam--theme .gt-seam-tile{background:var(--gt-seam-theme);
+  border-color:var(--gt-gold)}
+
+/* ── word preview tray (Phase 2) ───────────────────────────────────────── */
+.word-preview{display:flex;align-items:center;justify-content:center;gap:.5rem;
+  min-height:2.25rem;padding:.5rem;border-radius:14px;
+  background:var(--tray-bg);max-width:22rem;width:100%;margin-inline:auto}
+.wp-slot{position:relative;flex:1;max-width:3.25rem;aspect-ratio:1;
+  border-radius:9px;background:var(--background);border:1px solid var(--block-border)}
+.wp-chip{position:absolute;inset:0;display:grid;place-items:center;
+  border-radius:9px;background:var(--block-bg);color:var(--foreground);
+  border:1px solid var(--block-border);
+  font-family:var(--font-body);font-weight:700;
+  font-size:clamp(.8rem,3.6vw,1.05rem)}
+/* Phase 2 follow-up: raised drop-shadow lives on its own layer and fades
+   0->1 on rise, 1->0 on sink */
+.wp-chip::after{content:"";position:absolute;inset:0;border-radius:9px;
+  box-shadow:0 3px 0 var(--block-shadow),0 3px 6px oklch(0 0 0/.1);
+  opacity:0;transition:opacity .2s ease;pointer-events:none}
+.wp-chip--raised::after{opacity:1}
+
+/* category shimmer — golden glow wave across found row */
+.block--shimmer{animation:shimmerWave .8s var(--d,0s) ease both}
+@keyframes shimmerWave{
+  0%{filter:brightness(1);box-shadow:none}
+  40%{filter:brightness(1.35);box-shadow:0 0 12px color-mix(in oklch,var(--shimmer-gold) 60%,transparent),0 0 24px color-mix(in oklch,var(--shimmer-gold) 25%,transparent)}
+  100%{filter:brightness(1);box-shadow:none}
+}
+
+/* ── cards ────────────────────────────────────────────────────────────── */
+.card{background:var(--background);border-radius:1rem;padding:1.5rem 1.25rem;
+  width:100%;box-shadow:0 1px 2px oklch(0 0 0/.06),0 1px 3px oklch(0 0 0/.04)}
+.tile{display:flex;align-items:center;gap:.625rem;padding:.75rem .875rem;
+  border-radius:var(--radius);background:var(--tile);color:oklch(0 0 0);
+  text-align:left;flex:1}
+.tile__n{font-family:var(--font-heading);font-weight:700;font-size:.9375rem}
+.tile__s{font-size:.8125rem;opacity:.8}
+
+/* ── misc ─────────────────────────────────────────────────────────────── */
+.howtop{display:flex;justify-content:flex-end;width:100%;max-width:25rem;padding:.5rem}
+
+/* ── tutorial (Phase 7) — chrome shown over the real engine on #s-play ──── */
+.tut-head{display:none;flex-direction:column;align-items:center;width:100%;
+  max-width:25rem;margin-inline:auto;text-align:center;position:relative}
+#s-play.tut .tut-head{display:flex}
+/* in tutorial mode the nav band, HUD line, hint + pause controls are hidden */
+#s-play.tut .navband,#s-play.tut #hud{display:none}
+.tut-skip{position:absolute;top:-.25rem;right:.25rem;background:none;border:none;
+  font-family:var(--font-body);font-size:1rem;color:var(--muted-foreground);
+  padding:.25rem .5rem;cursor:pointer}
+.tut-title{font-family:var(--font-heading);font-weight:700;font-size:1.6rem;
+  line-height:1.15;margin:.25rem 0 .5rem}
+.tut-copy{font-size:1.0625rem;line-height:1.4;max-width:21rem;margin:0 auto .875rem;
+  min-height:calc(1.4em * 2)}
+.tut-copy strong{font-style:italic}
+.tut-pill{display:inline-block;border:none;border-radius:999px;
+  padding:.7rem 1.4rem;margin-bottom:.5rem;cursor:default;
+  font-family:var(--font-body);font-weight:700;font-size:1.0625rem;
+  background:var(--_accent);color:var(--_on-accent);
+  box-shadow:0 1px 2px oklch(0 0 0/.08)}
+.tut-pill--action{cursor:pointer;transition:transform .1s}
+.tut-pill--action:active{transform:scale(.97)}
+
+/* ── levels select ────────────────────────────────────────────────────── */
+.levels-content{gap:1rem;padding-block:2rem;max-width:30rem}
+.levels-head{display:flex;flex-direction:column;align-items:center;gap:.25rem;width:100%}
+.levels-grid{display:grid;grid-template-columns:1fr;gap:.75rem;width:100%}
+.lvl{position:relative;display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  padding:1.1rem 1.25rem;border-radius:var(--radius);text-align:left;
+  background:var(--background);border:1px solid var(--border);
+  box-shadow:0 1px 2px oklch(0 0 0/.05);transition:transform .1s,box-shadow .15s}
+.lvl:active{transform:scale(.98)}
+.lvl__cat{font-family:var(--font-heading);font-weight:700;font-size:1.25rem;
+  line-height:1.2;color:var(--foreground)}
+.lvl__status{font-weight:700;font-size:1rem;color:var(--_detail)}
+.lvl--done{border-color:color-mix(in oklch,var(--_detail) 45%,var(--border))}
+:root.dark .lvl{background:oklch(0.22 0 0)}
+
+/* ── pause overlay ────────────────────────────────────────────────────── */
+.pause{position:fixed;inset:0;z-index:60;display:none;place-items:center;
+  background:color-mix(in srgb,var(--background) 88%,transparent);
+  backdrop-filter:blur(6px)}
+.pause.on{display:grid}
+
+/* ── settings sheet ───────────────────────────────────────────────────── */
+.scrim{position:fixed;inset:0;z-index:70;background:oklch(0 0 0/.4);opacity:0;
+  pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:50%;top:50%;z-index:80;
+  background:var(--popover);border-radius:1rem;padding:1.5rem 1.25rem;
+  width:calc(100% - 2rem);max-width:28rem;
+  transform:translate(-50%,-50%) scale(.96);opacity:0;pointer-events:none;
+  transition:transform .22s cubic-bezier(.32,.72,0,1),opacity .22s;
+  box-shadow:0 12px 40px oklch(0 0 0/.24)}
+.sheet.on{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
+.sheet__grip{width:36px;height:4px;border-radius:999px;background:var(--border);
+  margin:0 auto .75rem}
+.row{display:flex;align-items:center;gap:.75rem;width:100%;padding:.875rem .25rem;
+  border-bottom:1px solid var(--border);text-align:left;font-size:1rem}
+.row:last-child{border-bottom:0}
+.row__t{flex:1}
+.sheet__section{font-family:var(--font-heading);font-weight:700;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);
+  padding:1rem .25rem .25rem}
+.sel{font:inherit;font-size:.9375rem;font-weight:600;color:var(--foreground);
+  background:var(--muted);border:1px solid var(--border);border-radius:999px;
+  padding:.375rem 2rem .375rem .875rem;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right .625rem center}
+.sw{flex:0 0 44px;height:26px;border-radius:999px;background:var(--border);
+  position:relative;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:999px;background:#fff;transition:transform .2s;
+  box-shadow:0 1px 2px oklch(0 0 0/.3)}
+.sw--on{background:var(--_detail)}
+.sw--on::after{transform:translateX(18px)}
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+.toast{position:fixed;left:50%;bottom:1.75rem;z-index:90;transform:translate(-50%,1rem);
+  background:var(--c-ink);color:#fff;font-size:.875rem;font-weight:700;
+  padding:.625rem 1.125rem;border-radius:999px;opacity:0;transition:.22s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ── animations ───────────────────────────────────────────────────────── */
+@keyframes celebrate{0%,to{transform:scale(1)}40%{transform:scale(1.08)}}
+.animate-celebrate{animation:.5s cubic-bezier(.34,1.56,.64,1) celebrate}
+
+/* Reduced motion is handled per-feature by the JS animation helper (Phase 0.3),
+   not by a global kill-switch. Press/tray transitions become instant. */
+@media(prefers-reduced-motion:reduce){
+  .block{transition:background .15s}
+  .block--pressed{transition:none}
+  .block--dip{transform:translateY(3px)}
+  .block--nudge{animation:none}
+  .block__hint--pop{animation:none}
+  #hintBtn.iconbtn--shake{animation:none}
+  .wp-chip::after{transition:none}
+}
+
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ══ LEVELS ═════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-levels" style="background:var(--_surface)">
+    <div class="content levels-content">
+      <div class="levels-head">
+        <div id="mark-levels"></div>
+        <h1 class="display">Threads</h1>
+        <p class="small" style="font-weight:700" id="levels-progress"></p>
+      </div>
+      <div class="levels-grid" id="levels-grid"></div>
+    </div>
+  </section>
+
+  <!-- ══ START ══════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-start" style="background:var(--_surface);justify-content:center">
+    <div class="content" style="gap:1rem;padding-block:3rem">
+      <button class="textbtn" data-go="levels" style="align-self:flex-start">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        All levels
+      </button>
+      <div id="mark-lg"></div>
+      <h1 class="display">Threads</h1>
+      <p class="eyebrow" id="start-cat" style="color:var(--_detail)"></p>
+      <p style="font-size:1rem">Weave five hidden words</p>
+      <button class="btn btn--start btn--block" style="max-width:18rem" id="startPlayBtn">Play</button>
+      <p class="small" style="font-weight:700" id="start-date"></p>
+    </div>
+  </section>
+
+  <!-- ══ PLAY ═══════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-play" style="background:var(--background)">
+    <div class="navband">
+      <nav class="nav" aria-label="Game navigation">
+        <div class="nav__l">
+          <button class="iconbtn iconbtn--bare" id="pauseBtn" aria-label="Pause">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M10 9v6M14 9v6"/></svg>
+          </button>
+          <span class="timer" id="timer">00:00</span>
+        </div>
+        <div class="nav__m" id="mark-sm"></div>
+        <div class="nav__r">
+          <button class="iconbtn" id="hintBtn" aria-label="Hint">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+          </button>
+          <button class="iconbtn" id="helpBtn" aria-label="How to play">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
+          </button>
+        </div>
+      </nav>
+    </div>
+    <div class="content" style="gap:.875rem;padding-top:1rem">
+      <div class="tut-head" id="tut-head">
+        <button class="tut-skip" id="tutSkip" type="button">Skip</button>
+        <h2 class="tut-title">How to Play Threads</h2>
+        <p class="tut-copy" id="tut-copy"></p>
+        <button class="tut-pill" id="tut-pill" type="button" disabled></button>
+      </div>
+      <p class="small muted" id="hud">Find 5 hidden words</p>
+      <div class="word-preview" id="word-preview"></div>
+      <div class="grid-wrap">
+        <div class="tgrid" id="tgrid"></div>
+      </div>
+      <button class="btn btn--outline" id="backResultsBtn" hidden style="margin-top:1rem">Back to results</button>
+    </div>
+  </section>
+
+  <!-- ══ COMPLETED ══════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-done" style="background:#FDEED8">
+    <div class="howtop" style="justify-content:flex-start">
+      <button class="textbtn" id="backPuzzleBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to puzzle
+      </button>
+    </div>
+    <div class="content" style="gap:.75rem">
+      <div id="mark-done"></div>
+      <h2 class="h1" id="done-title" style="margin-bottom:.25rem">Threads</h2>
+
+      <div class="card">
+        <p class="small" style="text-transform:uppercase">Your score</p>
+        <p class="figure" id="done-time" style="margin:.25rem 0 .5rem">00:00</p>
+        <p id="done-band" style="margin-bottom:1.25rem"></p>
+        <button class="btn btn--primary btn--block" id="nextGameBtn" style="margin-bottom:.75rem">Next game</button>
+        <button class="btn btn--outline btn--block" data-go="levels">Back to all games</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PAUSE ══════════════════════════════════════════════════════════ -->
+  <div class="pause" id="pause">
+    <div style="display:grid;gap:1.25rem;justify-items:center;padding:2rem">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted-foreground)"><path d="M10.7 5.1A11 11 0 0 1 21 12c-.5 1-1.2 2-2 2.9M6.6 6.6A11 11 0 0 0 3 12c1.7 3.4 5 6 9 6 1.3 0 2.5-.3 3.6-.7"/><path d="m2 2 20 20"/></svg>
+      <h2 class="h1">Paused</h2>
+      <p class="muted">Your threads are waiting.</p>
+      <button class="btn btn--primary" id="resumeBtn" style="min-width:12rem">Resume</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ SHEET ════════════════════════════════════════════════════════════ -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="How to play">
+  <h2 class="h2" style="margin:.25rem .25rem .75rem">How to Play Threads</h2>
+  <p class="small muted" style="padding:0 .25rem;line-height:1.55;font-size:1.125rem">
+    Weave five hidden phrases. Build each one left to right, choosing a single tile from every column. A tile can hold more than one letter.
+  </p>
+  <p class="small muted" style="padding:.625rem .25rem 0;line-height:1.55;font-size:1.125rem">
+    One of them is the <strong>Golden Thread</strong>: the theme running through the other four. Find all five to finish the puzzle.
+  </p>
+  <button class="btn btn--outline btn--block" id="replayTutBtn" style="margin-top:1.25rem">Replay tutorial</button>
+</div>
+
+<!-- hidden iOS switch-checkbox for a system haptic tick (Phase 0.7 experiment) -->
+<input type="checkbox" switch id="haptic-tick" aria-hidden="true" tabindex="-1"
+  style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px">
+<label for="haptic-tick" id="haptic-tick-label" aria-hidden="true"
+  style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px"></label>
+
+<div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════════
+   PUZZLE PACK
+   Grid is 5 rows × 5 columns of letter blocks. Five words are hidden;
+   each word takes one block from each column, left to right.
+   ════════════════════════════════════════════════════════════════════════ */
+const PACK = {
+  "2026-09-01": {
+    grid: [["B","E","NN","KE","S"],["T","LL","GA","M","NG"],["BA","O","C","I","T"],["H","I","CK","LI","Y"],["CR","O","W","E","ES"]],
+    words: ["BALLGAMES","BOWLING","CRICKET","HOCKEY","TENNIS"],
+    category: "Ball games", categoryWord: "BALLGAMES",
+    members: ["BOWLING","CRICKET","HOCKEY","TENNIS"],
+    emojis: {"BALLGAMES":"🏐","BOWLING":"🎳","CRICKET":"🏏","HOCKEY":"🏑","TENNIS":"🎾"}
+  },
+  "2026-09-02": {
+    grid: [["R","E","N","C","N"],["A","WA","RI","AN","A"],["BO","F","A","I","A"],["M","AL","SW","W","I"],["B","T","N","D","A"]],
+    words: ["BOTSWANA","AFRICA","MALAWI","RWANDA","BENIN"],
+    category: "African countries", categoryWord: "AFRICA",
+    members: ["BENIN","BOTSWANA","MALAWI","RWANDA"],
+    emojis: {"AFRICA":"🌍","BENIN":"🇧🇯","BOTSWANA":"🇧🇼","MALAWI":"🇲🇼","RWANDA":"🇷🇼"}
+  },
+  "2026-09-03": {
+    grid: [["GR","N","C","L","EN"],["N","IN","P","DA","N"],["C","E","S","I","W"],["K","OU","ND","M","E"],["U","A","S","HE","D"]],
+    words: ["GRANDDAD","KINSMEN","COUSIN","NEPHEW","UNCLE"],
+    category: "Male relatives", categoryWord: "KINSMEN",
+    members: ["COUSIN","GRANDDAD","NEPHEW","UNCLE"],
+    emojis: {"KINSMEN":"👪","COUSIN":"🧑","GRANDDAD":"👴","NEPHEW":"👦","UNCLE":"👨"}
+  },
+  "2026-09-04": {
+    grid: [["T","Y","AT","LI","L"],["T","ES","NN","I","ON"],["WR","E","T","I","NG"],["HA","RI","B","HL","S"],["OL","ND","MP","AL","CS"]],
+    words: ["TRIATHLON","WRESTLING","OLYMPICS","HANDBALL","TENNIS"],
+    category: "Olympic sports", categoryWord: "OLYMPICS",
+    members: ["HANDBALL","TENNIS","TRIATHLON","WRESTLING"],
+    emojis: {"OLYMPICS":"🏅","HANDBALL":"🤾","TENNIS":"🎾","TRIATHLON":"🏊","WRESTLING":"🤼"}
+  },
+  "2026-09-05": {
+    grid: [["M","GE","I","R","ES"],["F","O","TA","T","Y"],["VE","E","O","BL","S"],["FR","A","I","D","S"],["D","U","A","T","S"]],
+    words: ["VEGETABLES","FRUITS","FOODS","DAIRY","MEATS"],
+    category: "Food groups", categoryWord: "FOODS",
+    members: ["VEGETABLES","FRUITS","DAIRY","MEATS"],
+    emojis: {"FOODS":"🍽","VEGETABLES":"🥕","FRUITS":"🍎","DAIRY":"🧀","MEATS":"🍖"}
+  },
+  "2026-09-06": {
+    grid: [["R","U","LI","M","E"],["AW","D","Z","ZI","R"],["P","A","G","A","S"],["G","RA","R","TZ","Y"],["E","A","M","D","ER"]],
+    words: ["PULITZER","AWARDS","GRAMMY","RAZZIE","EDGAR"],
+    category: "Awards", categoryWord: "AWARDS",
+    members: ["EDGAR","GRAMMY","PULITZER","RAZZIE"],
+    emojis: {"AWARDS":"🏆","EDGAR":"🔪","GRAMMY":"🎵","PULITZER":"📰","RAZZIE":"🎬"}
+  },
+  "2026-09-07": {
+    grid: [["J","A","D","BA","A"],["I","EN","N","I","I"],["CH","N","I","H","I"],["M","U","M","PU","R"],["D","E","L","A","I"]],
+    words: ["CHENNAI","JAIPUR","MUMBAI","INDIA","DELHI"],
+    category: "Indian cities", categoryWord: "INDIA",
+    members: ["CHENNAI","DELHI","JAIPUR","MUMBAI"],
+    emojis: {"INDIA":"🇮🇳","CHENNAI":"🏙","DELHI":"🏛","JAIPUR":"🏰","MUMBAI":"🌉"}
+  },
+  "2026-09-08": {
+    grid: [["CA","L","A","PO","O"],["CL","PI","TA","I","M"],["H","E","D","LF","RT"],["TA","A","KS","CF","T"],["R","AS","SI","R","M"]],
+    words: ["CAPITALFM","CLASSICFM","TALKSPORT","RADIO","HEART"],
+    category: "Radio stations", categoryWord: "RADIO",
+    members: ["CAPITALFM","CLASSICFM","HEART","TALKSPORT"],
+    emojis: {"RADIO":"📻","CAPITALFM":"🎧","CLASSICFM":"🎻","HEART":"❤️","TALKSPORT":"🗣"}
+  },
+  "2026-09-09": {
+    grid: [["IN","MP","PL","IO","R"],["CO","VE","U","A","NE"],["TE","LE","N","HO","NS"],["A","IR","P","TE","NE"],["JE","TE","NT","GI","NE"]],
+    words: ["INVENTIONS","JETENGINE","TELEPHONE","AIRPLANE","COMPUTER"],
+    category: "Inventions", categoryWord: "INVENTIONS",
+    members: ["AIRPLANE","COMPUTER","JETENGINE","TELEPHONE"],
+    emojis: {"INVENTIONS":"💡","AIRPLANE":"✈️","COMPUTER":"💻","JETENGINE":"🛩","TELEPHONE":"☎️"}
+  },
+  "2026-09-10": {
+    grid: [["L","I","LR","PM","IN"],["A","D","HI","AN","L"],["MI","DS","PT","A","K"],["C","VA","MI","RA","T"],["NA","A","E","U","AN"]],
+    words: ["MIDSHIPMAN","NAVALRANK","ADMIRAL","CAPTAIN","LIEUT"],
+    category: "Naval ranks", categoryWord: "NAVALRANK",
+    members: ["ADMIRAL","CAPTAIN","LIEUT","MIDSHIPMAN"],
+    emojis: {"NAVALRANK":"⚓","ADMIRAL":"🎖","CAPTAIN":"🦫","LIEUT":"🎖","MIDSHIPMAN":"⛵"}
+  },
+  "2026-09-11": {
+    grid: [["DR","RI","E","D","S"],["G","H","G","E","S"],["CL","A","D","G","O"],["C","AU","M","S","E"],["B","U","E","H","TS"]],
+    words: ["DRAUGHTS","BRIDGE","CLUEDO","GAMES","CHESS"],
+    category: "Board & card games", categoryWord: "GAMES",
+    members: ["BRIDGE","CHESS","CLUEDO","DRAUGHTS"],
+    emojis: {"GAMES":"🎲","BRIDGE":"🃏","CHESS":"♟️","CLUEDO":"🔍","DRAUGHTS":"⛂"}
+  },
+  "2026-09-12": {
+    grid: [["ON","U","BE","O","A"],["A","AN","IT","RI","EC"],["M","L","I","B","BA"],["PR","T","A","NC","O"],["Q","OV","E","RT","E"]],
+    words: ["PROVINCE","MANITOBA","ALBERTA","ONTARIO","QUEBEC"],
+    category: "Canadian provinces", categoryWord: "PROVINCE",
+    members: ["ALBERTA","MANITOBA","ONTARIO","QUEBEC"],
+    emojis: {"PROVINCE":"🇨🇦","ALBERTA":"🏔","MANITOBA":"🌾","ONTARIO":"🏙","QUEBEC":"⛪"}
+  },
+  "2026-09-13": {
+    grid: [["BU","WE","R","E","NT"],["FL","SI","L","IS","R"],["NE","O","N","E","R"],["JE","W","SA","GE","SS"],["B","UT","CH","E","T"]],
+    words: ["NEWSAGENT","BUSINESS","BUTCHER","FLORIST","JEWELER"],
+    category: "High-street shops", categoryWord: "BUSINESS",
+    members: ["BUTCHER","FLORIST","JEWELER","NEWSAGENT"],
+    emojis: {"BUSINESS":"🏪","BUTCHER":"🥩","FLORIST":"💐","JEWELER":"💍","NEWSAGENT":"🗞"}
+  },
+  "2026-09-14": {
+    grid: [["RI","HE","N","I","IN"],["LO","G","E","ET","TO"],["LA","DE","OL","IA","AS"],["O","P","AV","GR","O"],["FI","TR","L","R","TA"]],
+    words: ["LATRAVIATA","RIGOLETTO","LOHENGRIN","FIDELIO","OPERAS"],
+    category: "Operas", categoryWord: "OPERAS",
+    members: ["RIGOLETTO","LOHENGRIN","FIDELIO","LATRAVIATA"],
+    emojis: {"OPERAS":"🎭","RIGOLETTO":"🎼","LOHENGRIN":"🦢","FIDELIO":"🗝","LATRAVIATA":"🌹"}
+  },
+  "2026-09-15": {
+    grid: [["MA","I","O","LI","N"],["AN","R","MA","I","T"],["T","NG","MO","L","CH"],["PA","ST","P","SE","S"],["O","A","R","I","R"]],
+    words: ["MARMOSET","PANGOLIN","ANIMALS","OSTRICH","TAPIR"],
+    category: "Animals", categoryWord: "ANIMALS",
+    members: ["MARMOSET","OSTRICH","PANGOLIN","TAPIR"],
+    emojis: {"ANIMALS":"🐾","MARMOSET":"🐒","OSTRICH":"🦩","PANGOLIN":"🦎","TAPIR":"🐇"}
+  },
+  "2026-09-16": {
+    grid: [["C","L","OG","TI","E"],["LI","G","O","E","L"],["F","ES","H","E","N"],["FR","L","N","L","D"],["HA","AN","D","O","NG"]],
+    words: ["LIGHTING","FRESNEL","HALOGEN","CANDLE","FLOOD"],
+    category: "Lighting", categoryWord: "LIGHTING",
+    members: ["CANDLE","FLOOD","FRESNEL","HALOGEN"],
+    emojis: {"LIGHTING":"💡","CANDLE":"🕯","FLOOD":"🔦","FRESNEL":"🏮","HALOGEN":"💡"}
+  },
+  "2026-09-17": {
+    grid: [["AN","S","TR","SI","S"],["LA","ER","DM","AS","CA"],["AU","TA","A","AL","A"],["AM","R","RC","A","IA"],["EU","N","IC","TI","S"]],
+    words: ["ANTARCTICA","AUSTRALIA","LANDMASS","AMERICAS","EURASIA"],
+    category: "Continents", categoryWord: "LANDMASS",
+    members: ["AMERICAS","ANTARCTICA","AUSTRALIA","EURASIA"],
+    emojis: {"LANDMASS":"🗺","AMERICAS":"🌎","ANTARCTICA":"🧊","AUSTRALIA":"🇦🇺","EURASIA":"🌏"}
+  },
+  "2026-09-18": {
+    grid: [["TI","US","I","AL","ED"],["M","O","TB","T","L"],["FO","C","C","A","E"],["C","ON","KE","ER","L"],["C","RU","IC","S","T"]],
+    words: ["TICKETED","FOOTBALL","CONCERT","MUSICAL","CRUISE"],
+    category: "Ticketed events", categoryWord: "TICKETED",
+    members: ["CONCERT","CRUISE","FOOTBALL","MUSICAL"],
+    emojis: {"TICKETED":"🎫","CONCERT":"🎤","CRUISE":"🛳","FOOTBALL":"⚽","MUSICAL":"🎭"}
+  },
+  "2026-09-19": {
+    grid: [["JE","C","MO","S","ON"],["E","E","OU","ES","SE"],["SA","MO","N","I","SY"],["R","D","T","A","S"],["E","AL","ST","R","Y"]],
+    words: ["JEALOUSY","EMOTION","ECSTASY","REMORSE","SADNESS"],
+    category: "Emotions", categoryWord: "EMOTION",
+    members: ["ECSTASY","JEALOUSY","REMORSE","SADNESS"],
+    emojis: {"EMOTION":"😌","ECSTASY":"🤩","JEALOUSY":"😬","REMORSE":"😔","SADNESS":"😢"}
+  },
+  "2026-09-20": {
+    grid: [["LO","O","N","ER","N"],["L","R","DB","UA","ON"],["CL","N","J","O","RA"],["CA","E","V","YR","VA"],["DO","SA","OP","AT","S"]],
+    words: ["CLEOPATRA","LORDBYRON","CASANOVA","DONJUAN","LOVERS"],
+    category: "Famous lovers", categoryWord: "LOVERS",
+    members: ["CASANOVA","CLEOPATRA","DONJUAN","LORDBYRON"],
+    emojis: {"LOVERS":"💘","CASANOVA":"🌹","CLEOPATRA":"👑","DONJUAN":"🎻","LORDBYRON":"🖋"}
+  },
+  "2026-09-21": {
+    grid: [["BU","E","ER","I","S"],["IN","I","V","F","L"],["BU","M","C","EB","T"],["CR","SE","CK","T","LY"],["WE","TT","BL","E","EE"]],
+    words: ["BUMBLEBEE","BUTTERFLY","INSECTS","CRICKET","WEEVIL"],
+    category: "Insects", categoryWord: "INSECTS",
+    members: ["BUMBLEBEE","BUTTERFLY","CRICKET","WEEVIL"],
+    emojis: {"INSECTS":"🐛","BUMBLEBEE":"🐝","BUTTERFLY":"🦋","CRICKET":"🦗","WEEVIL":"🪲"}
+  },
+  "2026-09-22": {
+    grid: [["CI","ER","P","L","E"],["AM","T","A","Y","ST"],["EM","O","TO","A","D"],["GE","MS","R","N","E"],["T","E","TH","IN","Z"]],
+    words: ["GEMSTONE","AMETHYST","CITRINE","EMERALD","TOPAZ"],
+    category: "Gemstones", categoryWord: "GEMSTONE",
+    members: ["AMETHYST","CITRINE","EMERALD","TOPAZ"],
+    emojis: {"GEMSTONE":"💎","AMETHYST":"🔮","CITRINE":"🟡","EMERALD":"🟢","TOPAZ":"🔶"}
+  },
+  "2026-09-23": {
+    grid: [["O","A","MA","L","E"],["GO","RA","NG","G","UR"],["SI","A","M","N","A"],["P","RI","N","AT","AN"],["L","R","IL","UT","G"]],
+    words: ["ORANGUTAN","PRIMATE","GORILLA","SIAMANG","LANGUR"],
+    category: "Primates", categoryWord: "PRIMATE",
+    members: ["GORILLA","LANGUR","ORANGUTAN","SIAMANG"],
+    emojis: {"PRIMATE":"🐒","GORILLA":"🦍","LANGUR":"🐒","ORANGUTAN":"🦧","SIAMANG":"🐒"}
+  },
+  "2026-09-24": {
+    grid: [["AC","RI","PI","I","N"],["B","T","OM","R","ID"],["E","HA","T","OM","SH"],["OT","L","YR","A","E"],["HO","M","EM","EN","AN"]],
+    words: ["ACHAEMENID","HOLYROMAN","BRITISH","OTTOMAN","EMPIRE"],
+    category: "Empires", categoryWord: "EMPIRE",
+    members: ["BRITISH","OTTOMAN","HOLYROMAN","ACHAEMENID"],
+    emojis: {"EMPIRE":"👑","BRITISH":"🇬🇧","OTTOMAN":"🕌","HOLYROMAN":"✝","ACHAEMENID":"🏺"}
+  }
+};
+
+const PAR_SECONDS = 180;
+const BANDS = [
+  [0.5, "Way ahead of the curve"],
+  [1.0, "Ahead of the curve"],
+  [1.6, "Right on the curve"],
+  [Infinity, "You got there in the end"]
+];
+
+/* ── level identity ────────────────────────────────────────────────────── */
+const DATES = Object.keys(PACK).sort();
+
+/* ── progress persistence (started / completed per level) ──────────────── */
+const PROGRESS_KEY = "threads-progress";
+function loadProgress() {
+  let saved = { started: [], completed: [] };
+  try { saved = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || saved; } catch (e) {}
+  S.started = new Set(saved.started || []);
+  S.solved = new Set(saved.completed || []);
+}
+function saveProgress() {
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+      started: [...S.started], completed: [...S.solved]
+    }));
+  } catch (e) {}
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SETTINGS (Phase 0.6) — persisted under "threads-settings"
+   ════════════════════════════════════════════════════════════════════════ */
+const SETTINGS_KEY = "threads-settings";
+const SETTINGS_DEFAULTS = {
+  scheme: "brand",          // brand | rainbow | ultramarine
+  haptics: true,
+  dark: false
+};
+function loadSettings() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (e) {}
+  S.settings = Object.assign({}, SETTINGS_DEFAULTS, saved);
+}
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings)); } catch (e) {}
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HINTS (Phase 6) — persisted under "threads-hints", keyed by level date
+   ════════════════════════════════════════════════════════════════════════ */
+const HINTS_KEY = "threads-hints";
+function allHints() {
+  try { return JSON.parse(localStorage.getItem(HINTS_KEY)) || {}; } catch (e) { return {}; }
+}
+function loadHints() {
+  if (S.tutorial) { S.hints = []; return; }   // no hints in the tutorial
+  const stored = allHints()[S.date] || [];
+  // keep only hints whose tiles still exist on the current board
+  const ids = new Set();
+  for (const c of S.columns) for (const b of c) ids.add(b.id);
+  S.hints = stored.filter(h => h.ids.every(id => ids.has(id)));
+}
+function saveHints() {
+  const map = allHints();
+  if (S.hints.length) map[S.date] = S.hints; else delete map[S.date];
+  try { localStorage.setItem(HINTS_KEY, JSON.stringify(map)); } catch (e) {}
+}
+function hintIds() {
+  const s = new Set();
+  for (const h of S.hints) for (const id of h.ids) s.add(id);
+  return s;
+}
+// decompose a word into one tile per column (left→right) from the live board;
+// returns [block0..block4] or null. Handles multi-letter tiles and duplicate
+// letters by trying each matching tile per column. `fixed` pins already-hinted
+// columns to a specific tile id so an extended hint stays on the same tiles.
+function decomposeWord(word, fixed = {}) {
+  const res = [];
+  const dfs = (c, pos) => {
+    if (c === 5) return pos === word.length;
+    const cands = fixed[c] != null ? S.columns[c].filter(b => b.id === fixed[c]) : S.columns[c];
+    for (const block of cands) {
+      if (word.startsWith(block.text, pos)) {
+        res[c] = block;
+        if (dfs(c + 1, pos + block.text.length)) return true;
+      }
+    }
+    return false;
+  };
+  return dfs(0, 0) ? res : null;
+}
+const fixedFromIds = ids => { const f = {}; ids.forEach((id, c) => f[c] = id); return f; };
+// build a selection ([{col,idx,block}]) for a hint's revealed prefix
+function selectPrefix(ids) {
+  return ids.map((id, c) => {
+    const idx = S.columns[c].findIndex(b => b.id === id);
+    return { col: c, idx, block: S.columns[c][idx] };
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ANIMATION HELPER (Phase 0.2) — promise-based, WAAPI
+   ════════════════════════════════════════════════════════════════════════ */
+const prefersReducedMotion = () =>
+  window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* anim(el, keyframes, options) -> Promise resolving when the animation finishes.
+   options.reduced: optional keyframes/options used when reduced motion is on
+   (default: a short opacity settle, no movement). */
+function anim(element, keyframes, options = {}) {
+  if (!element) return Promise.resolve();
+  const opts = typeof options === "number" ? { duration: options } : options;
+  if (prefersReducedMotion()) {
+    if (opts.reduced === null) return Promise.resolve();       // explicit: skip entirely
+    const rk = opts.reduced || [{ opacity: 0.6 }, { opacity: 1 }];
+    const a = element.animate(rk, { duration: 120, fill: "none" });
+    return a.finished.catch(() => {});
+  }
+  const { reduced, ...waapi } = opts;
+  const a = element.animate(keyframes, Object.assign({ duration: 300, easing: "ease", fill: "none" }, waapi));
+  return a.finished.catch(() => {});
+}
+/* run animations in sequence */
+async function seq(...fns) { for (const fn of fns) await fn(); }
+/* stagger the same animation across a list of elements */
+function stagger(elements, delayEach, make) {
+  return Promise.all([...elements].map((e, i) =>
+    new Promise(res => setTimeout(() => make(e, i).then(res), prefersReducedMotion() ? 0 : i * delayEach))));
+}
+/* plain promise delay */
+const wait = ms => new Promise(res => setTimeout(res, prefersReducedMotion() ? 0 : ms));
+
+/* ════════════════════════════════════════════════════════════════════════
+   HAPTICS HELPER (Phase 0.7)
+   ════════════════════════════════════════════════════════════════════════ */
+const HAPTIC_PATTERNS = {
+  select: 8, deselect: 5, found: [12, 40, 12],
+  wrong: [25, 40, 25, 40, 25], hint: 15, theme: [10, 30, 10, 30, 40]
+};
+function haptic(kind) {
+  if (!S.settings || !S.settings.haptics) return;
+  const pattern = HAPTIC_PATTERNS[kind];
+  if (pattern == null) return;
+  // Android WebViews: Vibration API
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); return; } catch (e) {} }
+  // iOS WebKit experiment: toggle a hidden switch-checkbox to coax a system tick.
+  try {
+    const label = document.getElementById("haptic-tick-label");
+    if (label && typeof label.click === "function") label.click();
+  } catch (e) { /* fail silently */ }
+}
+
+const S = {
+  date: DATES[0],
+  columns: [],          // columns[c] = [{text, origRow, id}]
+  selection: [],        // [{col, idx, block}]
+  found: [],            // found word strings
+  foundBlocks: [],      // [{word, blocks:[{col,block}], memberIdx}]
+  removed: new Set(),   // "origRow-col" ids
+  seconds: 0,
+  running: false,
+  won: false,
+  solved: new Set(),    // completed levels
+  started: new Set(),   // opened levels
+  settings: Object.assign({}, SETTINGS_DEFAULTS),
+  sound: true,
+  checking: false,      // debounce word check
+  themeTied: false,     // theme word found → knot ending has played
+  hints: [],            // [{word, ids:[col0Id, col1Id]}] active hints (Phase 6)
+  tutorial: null        // Phase 7: {step} while the interactive tutorial runs
+};
+
+/* Phase 7: the interactive tutorial runs the real engine on its own puzzle.
+   `puzzle()` returns this while S.tutorial is active, so grid building, word
+   validation, collapse and the celebration all work unchanged. */
+const TUTORIAL_PUZZLE = {
+  grid: [
+    ["EL","EE","M","N","A"],
+    ["M","EP","RK","F","T"],
+    ["A","NI","HA","A","FE"],
+    ["P","IR","A","A","L"],
+    ["G","A","N","D","T"]
+  ],
+  words: ["ELEPHANT","ANIMAL","MEERKAT","GIRAFFE","PANDA"],
+  category: "Animals", categoryWord: "ANIMAL",
+  members: ["ELEPHANT","GIRAFFE","MEERKAT","PANDA"],
+  emojis: {"ANIMAL":"🐾","ELEPHANT":"🐘","GIRAFFE":"🦒","MEERKAT":"🦫","PANDA":"🐼"}
+};
+
+const $ = s => document.querySelector(s);
+const el = (t, cls, html) => { const e = document.createElement(t);
+  if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+function puzzle() { return S.tutorial ? TUTORIAL_PUZZLE : PACK[S.date]; }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   GRID STATE
+   ════════════════════════════════════════════════════════════════════════ */
+function initGrid() {
+  const grid = puzzle().grid;
+  S.columns = [];
+  for (let c = 0; c < 5; c++) {
+    S.columns[c] = [];
+    for (let r = 0; r < grid.length; r++) {
+      const id = r + "-" + c;
+      if (!S.removed.has(id)) {
+        S.columns[c].push({ text: grid[r][c], origRow: r, id });
+      }
+    }
+  }
+}
+
+function shuffleColumns() {
+  for (let c = 0; c < 5; c++) {
+    const arr = S.columns[c];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  clearSelection();
+  renderGrid({ flip: true });
+  renderWordPreview();
+  drawThread();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER — keyed reconciliation (Phase 0.1)
+   Nodes are created once and reused; found rows keyed by word|col, active
+   blocks keyed by id. Position changes animate with FLIP.
+   ════════════════════════════════════════════════════════════════════════ */
+const nodeMap = new Map();    // active block id -> element
+const foundMap = new Map();   // "word|col" -> element
+let dividerEl = null;
+
+function renderGrid(opts = {}) {
+  const { settle = false, flip = false } = opts;
+  const g = $("#tgrid");
+  const p = puzzle();
+
+  /* FLIP: capture first positions of current active nodes */
+  let first = null;
+  if (flip && !prefersReducedMotion()) {
+    first = new Map();
+    for (const [id, node] of nodeMap) first.set(id, node.getBoundingClientRect());
+  }
+
+  const totalFoundRows = S.foundBlocks.length;
+  const activeRows = Math.max(...S.columns.map(c => c.length), 0);
+  let rowCursor = 1;
+
+  const hintSet = hintIds();
+
+  const seenFound = new Set();
+  const seenActive = new Set();
+
+  /* ── found word bars (one full-width node per word, keyed) ─────────── */
+  for (let fi = 0; fi < S.foundBlocks.length; fi++) {
+    const fw = S.foundBlocks[fi];
+    const isTheme = fw.word === p.categoryWord;
+    const key = fw.word;
+    seenFound.add(key);
+    let node = foundMap.get(key);
+    const fresh = !node;
+    if (fresh) {
+      node = document.createElement("div");
+      foundMap.set(key, node);
+      g.appendChild(node);
+      // compressed 5-tile seam, one tile per column, for the thread to run through
+      const letters = fw.blocks.slice().sort((a, b) => a.col - b.col).map(b => b.block.text);
+      node.__tiles = letters.map(ltr => {
+        const t = document.createElement("div");
+        t.className = "gt-seam-tile";
+        t.textContent = ltr;
+        node.appendChild(t);
+        return t;
+      });
+    }
+    node.className = "gt-seam" + (isTheme ? " gt-seam--theme" : "");
+    node.style.gridColumn = "1 / -1";
+    node.style.gridRow = rowCursor;
+    rowCursor++;
+  }
+
+  /* ── divider between found and active ──────────────────────────────── */
+  if (totalFoundRows > 0 && activeRows > 0) {
+    if (!dividerEl) {
+      dividerEl = document.createElement("div");
+      dividerEl.className = "grid-divider";
+      g.appendChild(dividerEl);
+    }
+    dividerEl.style.display = "";
+    dividerEl.style.gridRow = rowCursor;
+    rowCursor++;
+  } else if (dividerEl) {
+    dividerEl.style.display = "none";
+  }
+
+  /* ── active blocks ─────────────────────────────────────────────────── */
+  const nextCol = S.selection.length;
+  for (let c = 0; c < 5; c++) {
+    for (let i = 0; i < S.columns[c].length; i++) {
+      const block = S.columns[c][i];
+      seenActive.add(block.id);
+      let node = nodeMap.get(block.id);
+      if (!node) {
+        node = document.createElement("div");
+        node.dataset.id = block.id;
+        node.textContent = block.text;
+        nodeMap.set(block.id, node);
+        g.appendChild(node);
+        if (settle) node.classList.add("block--settle");
+      }
+      node.dataset.col = c;
+      node.dataset.idx = i;
+      let cls = "block";
+      const sel = S.selection.find(s => s.col === c);
+      if (sel && sel.block.id === block.id) cls += " block--selected";
+      else if (!S.won && !S.checking && c === nextCol && nextCol < 5)
+        cls += " block--available";
+      node.className = cls;
+      node.style.gridColumn = c + 1;
+      node.style.gridRow = rowCursor + i;
+      // Phase 6: persistent lightbulb badge on a hinted tile
+      if (hintSet.has(block.id)) ensureHintBadge(node); else removeHintBadge(node);
+    }
+  }
+
+  /* ── remove stale nodes (skip ones still playing an exit animation) ── */
+  for (const [key, node] of foundMap) {
+    if (!seenFound.has(key)) { node.remove(); foundMap.delete(key); }
+  }
+  for (const [id, node] of nodeMap) {
+    if (!seenActive.has(id) && !node.classList.contains("block--removing")) {
+      node.remove(); nodeMap.delete(id);
+    }
+  }
+
+  /* ── FLIP: animate position deltas ─────────────────────────────────── */
+  if (first) {
+    for (const [id, node] of nodeMap) {
+      const prev = first.get(id);
+      if (!prev) continue;
+      const now = node.getBoundingClientRect();
+      const dx = prev.left - now.left, dy = prev.top - now.top;
+      if (dx || dy) {
+        node.animate(
+          [{ transform: "translate(" + dx + "px," + dy + "px)" },
+           { transform: "translate(0,0)" }],
+          { duration: 250, easing: "cubic-bezier(.34,1.56,.64,1)" }
+        );
+      }
+    }
+  }
+
+  // redraw the sewn thread for every found word at its live seam position
+  GT.renderFound();
+  // persistent guide threads through hinted tiles — skipped for any hint the
+  // live selection already covers (the pick stitch is drawing it instead)
+  const hintGroups = [];
+  for (const h of S.hints) {
+    if (S.found.includes(h.word)) continue;
+    const covered = S.selection.length >= h.ids.length &&
+      h.ids.every((id, i) => S.selection[i] && S.selection[i].block.id === id);
+    if (covered) continue;
+    const tileEls = h.ids.map(id => nodeMap.get(id)).filter(Boolean);
+    if (tileEls.length === h.ids.length) hintGroups.push({ word: h.word, tileEls });
+  }
+  GT.renderHints(hintGroups);
+  updateHintBtn();
+}
+
+/* Phase 6: lightbulb badge helpers (child element on an active tile) */
+const HINT_BULB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.9 1 .9 1.6v.5h5.2v-.5c0-.6.4-1.2.9-1.6A6 6 0 0 0 12 3z"/></svg>';
+function ensureHintBadge(node) {
+  if (node.querySelector(".block__hint")) return;
+  const b = el("span", "block__hint", HINT_BULB);
+  node.appendChild(b);
+}
+function removeHintBadge(node) {
+  const b = node.querySelector(".block__hint");
+  if (b) b.remove();
+}
+
+/* clear all keyed nodes (used on level reset) */
+function clearGridNodes() {
+  for (const [, node] of nodeMap) node.remove();
+  for (const [, node] of foundMap) node.remove();
+  nodeMap.clear(); foundMap.clear();
+  if (dividerEl) { dividerEl.remove(); dividerEl = null; }
+  GT.clear();
+  $("#tgrid").innerHTML = "";
+}
+
+
+/* ── word preview tray (Phase 2) — keyed 5 slots, rise/sink on fill ────── */
+let traySlots = null;
+let trayState = [null, null, null, null, null];
+
+function buildTray() {
+  const wp = $("#word-preview");
+  wp.innerHTML = "";
+  traySlots = [];
+  for (let c = 0; c < 5; c++) {
+    const slot = el("div", "wp-slot");
+    wp.appendChild(slot);
+    traySlots.push(slot);
+  }
+  trayState = [null, null, null, null, null];
+}
+
+function renderWordPreview() {
+  if (!traySlots || !traySlots[0].isConnected) buildTray();
+  for (let c = 0; c < 5; c++) {
+    const sel = S.selection.find(s => s.col === c);
+    const text = sel ? sel.block.text : null;
+    if (text === trayState[c]) continue;
+    const slot = traySlots[c];
+
+    if (text != null) {
+      // fill: a chip rises out of the socket
+      slot.innerHTML = "";
+      const chip = el("div", "wp-chip");
+      chip.textContent = text;
+      slot.appendChild(chip);
+      if (!prefersReducedMotion()) {
+        chip.animate(
+          [{ transform: "translateY(6px)", opacity: 0.6 },
+           { transform: "translateY(0)", opacity: 1 }],
+          { duration: 200, easing: "cubic-bezier(.34,1.56,.64,1)" });
+        // raised shadow fades in on its own ::after layer (reflow first)
+        void chip.offsetWidth;
+      }
+      chip.classList.add("wp-chip--raised");
+    } else {
+      // empty: the chip sinks back into the socket, then is removed
+      const chip = slot.querySelector(".wp-chip");
+      if (chip) chip.classList.remove("wp-chip--raised"); // shadow fades out
+      if (chip && !prefersReducedMotion()) {
+        const a = chip.animate(
+          [{ transform: "translateY(0)", opacity: 1 },
+           { transform: "translateY(6px)", opacity: 0.3 }],
+          { duration: 140, easing: "ease-in" });
+        a.finished.then(() => { if (trayState[c] == null) slot.innerHTML = ""; }).catch(() => {});
+      } else {
+        slot.innerHTML = "";
+      }
+    }
+    trayState[c] = text;
+  }
+}
+
+function updateHud() {
+  const p = puzzle();
+  const remaining = p.words.length - S.found.length;
+  $("#hud").textContent = S.won ? "All phrases found!"
+    : remaining === p.words.length ? "Find 5 hidden phrases"
+    : remaining + " phrase" + (remaining > 1 ? "s" : "") + " remaining";
+}
+
+/* ── thread rendering (Golden Thread sewn stitch) ─────────────────────── */
+const SVGNS = "http://www.w3.org/2000/svg";
+
+/* Golden Thread owns selection rendering: the current selection is drawn as a
+   live sewn stitch (needle + under/over thread through each tile's holes) by
+   the GT module. `opts.cls` tints the stitch for valid/invalid feedback. */
+function drawThread(opts = {}) {
+  if (GT.isReady()) GT.setPick(S.selection, opts);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   INTERACTION — Phase 3: unified Pointer Events (tap + drag)
+   One handler owns selection, press visuals and the live loose end. A tap is
+   pointerdown+pointerup without entering another tile (old click behaviour).
+   ════════════════════════════════════════════════════════════════════════ */
+const grid = $("#tgrid");
+
+let pressedNode = null;
+function releasePress() {
+  if (pressedNode) { pressedNode.classList.remove("block--pressed"); pressedNode = null; }
+}
+function pressTile(node) { releasePress(); if (node) { node.classList.add("block--pressed"); pressedNode = node; } }
+function nudgeTile(node) {
+  node.classList.remove("block--nudge"); void node.offsetWidth; node.classList.add("block--nudge");
+}
+
+/* hit-test the inner ~70% of a tile so diagonal drags don't clip neighbours */
+function hitTile(x, y) {
+  const t = document.elementFromPoint(x, y);
+  const b = t && t.closest ? t.closest(".block") : null;
+  if (!b || !b.dataset.id) return null;
+  const r = b.getBoundingClientRect();
+  const ix = r.width * 0.15, iy = r.height * 0.15;
+  if (x < r.left + ix || x > r.right - ix || y < r.top + iy || y > r.bottom - iy) return null;
+  return b;
+}
+
+/* ── selection rendering ───────────────────────────────────────────────
+   Golden Thread replaces the Phase 3 loose-end: the selection is always drawn
+   as a sewn stitch through the picked tiles, and the needle eases (catches up)
+   to the head tile, so fast taps and drags never drop input. */
+let dragging = false;
+
+function afterSelectionChange() {
+  if (!S.running && !S.won && !S.tutorial) startClock();
+  renderGrid();
+  renderWordPreview();
+  drawThread();   // GT syncs the live sewn stitch to the new selection
+}
+function maybeAutoCheck() {
+  if (S.selection.length !== 5) return false;
+  S.checking = true;
+  if (drag) drag.locked = true;
+  renderGrid();      // drop "available" highlights
+  drawThread();      // stitch the fifth tile (needle runs off the right edge)
+  // let the final stitch land (paced at ~pace×3.4), then validate
+  (async () => { await wait(prefersReducedMotion() ? 0 : GT.cfg.pace * 3.4); await checkAndHandleWord(); })();
+  return true;
+}
+
+let drag = null;
+
+grid.addEventListener("pointerdown", e => {
+  if (!e.isPrimary) return;
+  GT.skip();                 // tap the board to fast-forward an in-progress ending
+  if (S.won || S.checking) return;
+  const blockEl = e.target.closest(".block");
+  if (!blockEl || !blockEl.dataset.id) return;
+
+  const col = +blockEl.dataset.col, idx = +blockEl.dataset.idx;
+  const block = S.columns[col][idx];
+
+  // Phase 6: tapping the rightmost hinted tile of an unfound hint restores that
+  // hint's selection, so the player can resume from where the hint left off.
+  const resume = S.hints.find(h =>
+    !S.found.includes(h.word) && h.ids[h.ids.length - 1] === block.id);
+  if (resume) {
+    S.selection = selectPrefix(resume.ids);
+    haptic("select");
+    try { grid.setPointerCapture(e.pointerId); } catch {}
+    pressTile(blockEl);
+    dragging = true;
+    // committed, non-deferred drag so a tap keeps the restored prefix (no
+    // re-tap truncate) while a drag can still extend into the next column
+    drag = {
+      pointerId: e.pointerId, startId: block.id, startExistingIdx: resume.ids.length - 1,
+      isSelectedTile: false, moved: false, committed: true, locked: false
+    };
+    afterSelectionChange();
+    return;
+  }
+
+  const nextCol = S.selection.length;
+  const existingIdx = S.selection.findIndex(s => s.col === col);
+  const isSelectedTile = existingIdx >= 0 && S.selection[existingIdx].block.id === block.id;
+  const isSameColDiff = existingIdx >= 0 && !isSelectedTile;
+  const isNext = existingIdx < 0 && col === nextCol && nextCol < 5;
+
+  // only next-col / already-selected / same-column-swap tiles are actionable
+  if (!isSelectedTile && !isSameColDiff && !isNext) { nudgeTile(blockEl); return; }
+
+  try { grid.setPointerCapture(e.pointerId); } catch {}
+  pressTile(blockEl);
+  dragging = true;
+  drag = {
+    pointerId: e.pointerId, startId: block.id, startExistingIdx: existingIdx,
+    isSelectedTile, moved: false, committed: !isSelectedTile, locked: false
+  };
+
+  if (isNext) {
+    S.selection.push({ col, idx, block }); haptic("select");
+    afterSelectionChange();
+    if (maybeAutoCheck()) return;
+  } else if (isSameColDiff) {
+    S.selection = S.selection.slice(0, existingIdx);
+    S.selection.push({ col, idx, block }); haptic("select");
+    afterSelectionChange();
+    if (maybeAutoCheck()) return;
+  }
+  // isSelectedTile: defer mutation until we know tap vs drag
+  drawThread();
+});
+
+grid.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.pointerId || S.checking || drag.locked) return;
+
+  const tile = hitTile(e.clientX, e.clientY);
+  if (!tile) return;
+  const col = +tile.dataset.col, idx = +tile.dataset.idx;
+  const block = S.columns[col][idx];
+
+  if (block.id !== drag.startId) drag.moved = true;
+
+  // first real move off a deferred selected-tile start commits the drag start:
+  // last selected -> continue; earlier selected -> truncate to it
+  if (drag.isSelectedTile && !drag.committed && drag.moved) {
+    const ei = drag.startExistingIdx;
+    if (ei !== S.selection.length - 1) S.selection = S.selection.slice(0, ei + 1);
+    drag.committed = true;
+    afterSelectionChange();
+  }
+
+  const last = S.selection[S.selection.length - 1];
+  if (last && last.block.id === block.id) return; // still on current head
+
+  const alreadySel = S.selection.findIndex(s => s.block.id === block.id) >= 0;
+  const nextCol = S.selection.length;
+
+  if (!alreadySel && col === nextCol && nextCol < 5) {
+    // extend into the next column
+    S.selection.push({ col, idx, block }); haptic("select"); pressTile(tile);
+    afterSelectionChange();
+    maybeAutoCheck();
+  } else if (S.selection.length >= 2 &&
+             S.selection[S.selection.length - 2].block.id === block.id) {
+    // backtrack: dragging onto the second-to-last tile pops the head
+    S.selection.pop(); haptic("deselect"); pressTile(tile);
+    afterSelectionChange();
+  }
+  // anything else mid-drag is ignored
+});
+
+function endDrag(e, isCancel) {
+  if (drag && e.pointerId !== drag.pointerId) return;
+  if (drag && !isCancel && !drag.moved && !drag.locked) {
+    // tap: apply the deferred selected-tile behaviour (re-tap truncates here),
+    // provided the release is still over the grid (off-grid keeps selection)
+    const overEl = document.elementFromPoint(e.clientX, e.clientY);
+    const overGrid = !!(overEl && overEl.closest && overEl.closest(".block"));
+    if (drag.isSelectedTile && overGrid) {
+      S.selection = S.selection.slice(0, drag.startExistingIdx);
+      haptic("deselect");
+      afterSelectionChange();
+    }
+  }
+  releasePress();
+  const wasLocked = drag && drag.locked;
+  dragging = false;
+  if (!wasLocked) GT.endPick(); // keep the needle parked at the tip as a marker
+  drag = null;
+}
+grid.addEventListener("pointerup", e => endDrag(e, false));
+grid.addEventListener("pointercancel", e => endDrag(e, true));
+
+function clearSelection() { S.selection = []; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   HINTS (Phase 6) — reveal a word's tiles one connection at a time. The first
+   click reveals cols 1-2; each further click extends the SAME word (2-3, 3-4…)
+   up to four tiles. Hinted tiles keep a persistent guide thread so a player can
+   tap the rightmost hinted tile to resume a hint after trying another word.
+   ════════════════════════════════════════════════════════════════════════ */
+function updateHintBtn() {
+  const b = $("#hintBtn");
+  if (b) b.disabled = S.checking || S.won;
+}
+// a quick press-bounce on a tile (used when a hint lands); tiles are selected
+// so they already sit at translateY(3px)
+function pressBounce(node) {
+  if (!node || prefersReducedMotion()) return;
+  node.animate(
+    [{ transform: "translateY(3px) scale(1)" },
+     { transform: "translateY(5px) scale(.96)", offset: 0.4 },
+     { transform: "translateY(3px) scale(1)" }],
+    { duration: 220, easing: "cubic-bezier(.34,1.56,.64,1)" });
+}
+// reveal up to this many of a word's five columns (the last tile is always
+// left for the player to place)
+const HINT_MAX = 4;
+function doHint() {
+  if (S.checking || S.won) return;
+  const p = puzzle();
+  const unfound = p.words.filter(w => !S.found.includes(w));
+  // 1) extend the active hint — the most recent unfound word that still has
+  //    tiles left to reveal — so repeat clicks grow the SAME word (2-3, 3-4…)
+  const active = [...S.hints].reverse().find(h =>
+    unfound.includes(h.word) && h.ids.length < HINT_MAX);
+  if (active) {
+    const tiles = decomposeWord(active.word, fixedFromIds(active.ids));
+    const nextCol = active.ids.length;
+    if (tiles && tiles[nextCol]) {
+      active.ids.push(tiles[nextCol].id);
+      saveHints();
+      applyHint(active, [tiles[nextCol].id]);
+      return;
+    }
+  }
+  // 2) nothing to extend — start a new word. Random unfound member word without
+  //    an active hint; the theme word is only hintable once it's the last left.
+  const hinted = new Set(S.hints.map(h => h.word));
+  const eligible = unfound.filter(w =>
+    !hinted.has(w) && (w !== p.categoryWord || unfound.length === 1));
+  if (!eligible.length) {
+    const b = $("#hintBtn");
+    if (b) { b.classList.remove("iconbtn--shake"); void b.offsetWidth; b.classList.add("iconbtn--shake"); }
+    toast("Every word has a hint");
+    return;
+  }
+  const word = eligible[Math.floor(Math.random() * eligible.length)];
+  const tiles = decomposeWord(word);
+  if (!tiles) return;
+  const hint = { word, ids: [tiles[0].id, tiles[1].id] };
+  S.hints.push(hint);
+  saveHints();
+  applyHint(hint, hint.ids.slice());   // reveal cols 1 & 2
+}
+// select the hint's full revealed prefix, then pop the newly revealed badges
+function applyHint(hint, newIds) {
+  // a hint replaces any selection in progress
+  S.selection = selectPrefix(hint.ids);
+  haptic("hint");
+  afterSelectionChange();   // renders badges + selection, tray, and the GT stitch
+  requestAnimationFrame(() => {
+    for (const id of newIds) {
+      const node = nodeMap.get(id);
+      if (!node) continue;
+      const badge = node.querySelector(".block__hint");
+      if (badge && !prefersReducedMotion()) {
+        badge.classList.remove("block__hint--pop"); void badge.offsetWidth;
+        badge.classList.add("block__hint--pop");
+      }
+      pressBounce(node);
+    }
+  });
+}
+$("#hintBtn").onclick = doHint;
+
+/* ════════════════════════════════════════════════════════════════════════
+   WORD CHECK — async sequences via the animation helper (Phase 0.2)
+   S.checking blocks input for the whole sequence.
+   ════════════════════════════════════════════════════════════════════════ */
+async function checkAndHandleWord() {
+  const word = S.selection.map(s => s.block.text).join("");
+  const p = puzzle();
+
+  let ok = p.words.includes(word) && !S.found.includes(word);
+  // tutorial steps 1 & 2 only accept their target word; other complete words
+  // shake as normal so the player is funnelled to the scripted answer
+  if (ok && S.tutorial) {
+    const target = TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].target;
+    if (target && word !== target) ok = false;
+  }
+  if (ok) {
+    await handleValidWord(word);
+  } else {
+    await handleInvalidWord();
+  }
+}
+
+async function handleValidWord(word) {
+  const p = puzzle();
+  S.found.push(word);
+
+  // Record the found blocks for the colored top rows
+  const isTheme = word === p.categoryWord;
+  const foundEntry = {
+    word,
+    blocks: S.selection.map(s => ({ col: s.col, block: s.block })),
+    // discovery order among members only — theme never consumes a colour slot
+    memberIdx: isTheme ? -1 : S.foundBlocks.filter(f => f.word !== p.categoryWord).length
+  };
+
+  const reduce = prefersReducedMotion();
+  const selNodes = S.selection
+    .slice().sort((a, b) => a.col - b.col)
+    .map(s => nodeMap.get(s.block.id)).filter(Boolean);
+  const selCopy = S.selection.slice();
+
+  /* ── Stage 3: thread-driven collapse ───────────────────────────────────
+     The sewn thread pulls the word's tiles up into the seam at the top
+     (right tile first, backOut landing, slack springing taut), while the
+     remaining tiles fall up at the same time. Input stays locked only for the
+     length of the pull; the theme word's ending (knot) comes in Stage 4. */
+  const commit = () => {
+    for (const s of selCopy) { S.removed.add(s.block.id); nodeMap.delete(s.block.id); }
+    S.foundBlocks.push(foundEntry);
+    S.selection = [];
+    // drop any hint whose tiles were just consumed (badges go with the word)
+    const before = S.hints.length;
+    S.hints = S.hints.filter(h => !h.ids.some(id => S.removed.has(id)));
+    if (S.hints.length !== before) saveHints();
+    initGrid();
+    renderGrid({ flip: true });   // remaining tiles fall up (FLIP, ~250ms)
+    renderWordPreview();
+    updateHud();
+  };
+
+  await GT.collapseWord({ word, selNodes, isTheme, commit });
+  haptic("found");
+
+  /* ── Stage 4: tassel knot ending ───────────────────────────────────────
+     When the theme word lands, every thread found so far ties into an amber
+     knot at the right edge of the gold seam. Member words found *after* the
+     theme tie in one at a time. */
+  if (isTheme) {
+    await GT.tieTogether();
+    S.themeTied = true;
+  } else if (S.themeTied) {
+    await GT.tieIn(word);
+  }
+
+  // Completion?
+  if (S.tutorial) {
+    tutorialOnWordFound(word);
+  } else if (S.found.length === p.words.length && !S.won) {
+    await wait(reduce ? 0 : 400);
+    finish();
+  }
+
+  S.checking = false;
+  updateHintBtn();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   GOLDEN THREAD — sewn-thread system (ports golden-thread-reference.html)
+   Replaces the Phase 3 curved selection thread, the Phase 4 collapse and the
+   Phase 5 celebration. Thread geometry is recomputed from live tile rects, in
+   grid-wrap pixel space, so it follows tiles as they move or the board resizes.
+
+   Stage 1 (this stage): static sewn thread for found words — an "under" layer
+   behind the tiles (shows in the gaps / tails) and a "top" layer clipped to
+   each tile's stitch band (shows on the faces). Theme = gold, members = linen.
+   Live needle stitching, thread-driven collapse and the tassel knot land in
+   later stages.
+   ════════════════════════════════════════════════════════════════════════ */
+const GT = (() => {
+  const cfg = { pace: 180, slack: 18, pull: 520, stagger: 35, bounce: 0.45, knot: 820 };
+  const TAIL = 14;                 // under-board tail length past the end tiles
+  const INSET = 0.18;              // holes sit this fraction in from each tile edge
+  let under = null, over = null, fx = null, overDefs = null, ready = false;
+  let collapsing = null;           // word mid-collapse — its found thread is suppressed
+  const threads = new Map();       // word -> { gu, gt, under, top, clips[5], kind }
+  const hintThreads = new Map();   // word -> persistent guide thread through hinted tiles
+
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const backOut = (t, c1 = 1.9) => { const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+  const pullEase = t => backOut(clamp(t), 0.2 + cfg.bounce * 2);
+  // slack oscillates briefly then settles to 0 (thread snapping taut)
+  const springSlack = k => Math.exp(-4 * k) * Math.cos(k * Math.PI * 0.5 * (1 + cfg.bounce * 8)) * (1 - k);
+
+  const wrapRect = () => document.querySelector(".grid-wrap").getBoundingClientRect();
+  function relRect(node) {
+    const w = wrapRect(), r = node.getBoundingClientRect();
+    return { x: r.left - w.left, y: r.top - w.top, w: r.width, h: r.height };
+  }
+  function mk(tag, cls) {
+    const e = document.createElementNS(SVGNS, tag);
+    if (cls) e.setAttribute("class", cls);
+    return e;
+  }
+  function init() {
+    const wrap = document.querySelector(".grid-wrap");
+    if (!wrap || ready) return;
+    under = mk("svg", "gt gt-under"); under.setAttribute("preserveAspectRatio", "none");
+    over = mk("svg", "gt gt-over"); over.setAttribute("preserveAspectRatio", "none");
+    overDefs = document.createElementNS(SVGNS, "defs"); over.appendChild(overDefs);
+    fx = mk("svg", "gt gt-fx"); fx.setAttribute("preserveAspectRatio", "none");
+    wrap.appendChild(under); wrap.appendChild(over); wrap.appendChild(fx);
+    ready = true;
+  }
+  function size(svg) {
+    const w = wrapRect();
+    svg.setAttribute("viewBox", "0 0 " + w.width + " " + w.height);
+  }
+
+  // holes sit at 80% of tile height and 18% in from each edge, so the thread
+  // rises onto the face through one hole and dives back down through the next.
+  function holesForTiles(tileEls) {
+    return tileEls.map(t => {
+      const r = relRect(t);
+      const ins = r.w * INSET;
+      return { l: r.x + ins, r: r.x + r.w - ins, y: r.y + r.h * 0.8, h: r.h };
+    });
+  }
+  // tail → up through each hole, across the face, down the far side → tail off.
+  // When knotT>0 the right-hand tail sweeps to the shared knot point and the
+  // slack goes taut, so every found thread gathers into the tassel.
+  function threadD(holes, slack, knotT, kp) {
+    const first = holes[0], last = holes[holes.length - 1];
+    const sx = first.l - TAIL, sy = first.y;
+    const kt = knotT || 0;
+    const ex = kt > 0 && kp ? lerp(last.r + TAIL, kp.x, kt) : last.r + TAIL;
+    const ey = kt > 0 && kp ? lerp(last.y, kp.y, kt) : last.y;
+    let d = "M" + sx + " " + sy, px = sx, py = sy;
+    const curve = (x, y, sag) => { d += " Q" + ((px + x) / 2) + " " + ((py + y) / 2 + sag) + " " + x + " " + y; px = x; py = y; };
+    for (const h of holes) { curve(h.l, h.y, slack); d += " L" + h.r + " " + h.y; px = h.r; py = h.y; }
+    curve(ex, ey, slack * (1 - kt));
+    return d;
+  }
+  function ensureThread(word, kind) {
+    let t = threads.get(word);
+    if (!t) {
+      const gu = mk("g", "gt-thread " + kind), gt = mk("g", "gt-thread " + kind);
+      const u = mk("path", "gt-u"); gu.appendChild(u);
+      const cid = "gtclip-" + word.replace(/[^A-Za-z0-9]/g, "");
+      const clip = mk("clipPath"); clip.setAttribute("id", cid);
+      const clips = [0, 1, 2, 3, 4].map(() => { const r = mk("rect"); clip.appendChild(r); return r; });
+      overDefs.appendChild(clip);
+      const tp = mk("path", "gt-t"); tp.setAttribute("clip-path", "url(#" + cid + ")"); gt.appendChild(tp);
+      under.appendChild(gu); over.appendChild(gt);
+      t = { gu, gt, under: u, top: tp, clip, clips, kind, holes: holesGroup(), knotT: 0 };
+      threads.set(word, t);
+    } else if (t.kind !== kind) {
+      t.gu.setAttribute("class", "gt-thread " + kind);
+      t.gt.setAttribute("class", "gt-thread " + kind);
+      t.kind = kind;
+    }
+    return t;
+  }
+  // draw the sewn thread for every found word at its current seam geometry
+  function renderFound() {
+    if (!ready) return;
+    size(under); size(over); size(fx);
+    const p = puzzle();
+    const kp = knotPoint();
+    const seen = new Set();
+    for (const fw of S.foundBlocks) {
+      if (fw.word === collapsing) continue;   // its clones are still flying up
+      const seam = foundMap.get(fw.word);
+      if (!seam || !seam.__tiles) continue;
+      const kind = fw.word === p.categoryWord ? "gold" : "linen";
+      const t = ensureThread(fw.word, kind);
+      const holes = holesForTiles(seam.__tiles);
+      const taut = cfg.slack * (1 - (t.knotT || 0));
+      const d = threadD(holes, taut, t.knotT, kp);
+      t.under.setAttribute("d", d); t.top.setAttribute("d", d);
+      holes.forEach((h, i) => {
+        const band = h.h * 0.4, r = t.clips[i];
+        r.setAttribute("x", h.l); r.setAttribute("y", h.y - band / 2);
+        r.setAttribute("width", Math.max(0, h.r - h.l + 0.5)); r.setAttribute("height", band);
+      });
+      t.gu.setAttribute("opacity", 1); t.gt.setAttribute("opacity", 1);
+      drawHoles(t.holes, holes, true);
+      seen.add(fw.word);
+    }
+    drawKnot();
+    for (const [word, t] of threads) {
+      if (!seen.has(word)) { t.gu.remove(); t.gt.remove(); if (t.clip) t.clip.remove(); if (t.holes) t.holes.g.remove(); threads.delete(word); }
+    }
+  }
+  function clear() {
+    for (const [, t] of threads) { t.gu.remove(); t.gt.remove(); if (t.clip) t.clip.remove(); if (t.holes) t.holes.g.remove(); }
+    threads.clear();
+    clearHints();
+    clearPick();
+    if (knot) { knot.g.remove(); knot = null; }   // drop the tassel knot so it can't linger (e.g. after the tutorial)
+    collapsing = null;
+    endingActive = false; skipping = false;
+  }
+
+  /* ── persistent hint guide: a faint, needle-less stitch kept through the
+     hinted tiles at all times, so a player can see (and tap back to) a hint
+     even after clicking off to try another word. Redrawn per renderGrid from
+     the live tile positions; hidden for a hint while the live pick stitch is
+     already drawing it. ─────────────────────────────────────────────────── */
+  function ensureHintThread(word) {
+    let h = hintThreads.get(word);
+    if (!h) {
+      const gu = mk("g", "gt-thread linen gt-hintthread"), gt = mk("g", "gt-thread linen gt-hintthread");
+      const u = mk("path", "gt-u"); gu.appendChild(u);
+      const cid = "gthint-" + word.replace(/[^A-Za-z0-9]/g, "");
+      const clip = mk("clipPath"); clip.setAttribute("id", cid);
+      const clips = [0, 1, 2, 3, 4].map(() => { const r = mk("rect"); clip.appendChild(r); return r; });
+      overDefs.appendChild(clip);
+      const tp = mk("path", "gt-t"); tp.setAttribute("clip-path", "url(#" + cid + ")"); gt.appendChild(tp);
+      under.appendChild(gu); over.appendChild(gt);
+      h = { gu, gt, under: u, top: tp, clip, clips, holes: holesGroup() };
+      hintThreads.set(word, h);
+    }
+    return h;
+  }
+  function renderHints(groups) {
+    if (!ready) return;
+    const seen = new Set();
+    for (const { word, tileEls } of (groups || [])) {
+      if (!tileEls || tileEls.length < 2) continue;
+      const h = ensureHintThread(word);
+      const holes = pickHoles(tileEls);
+      const d = pickPath(holes, false, cfg.slack * 0.6);
+      h.under.setAttribute("d", d); h.top.setAttribute("d", d);
+      holes.forEach((hole, i) => {
+        const band = hole.h * 0.4, r = h.clips[i];
+        r.setAttribute("x", hole.l); r.setAttribute("y", hole.y - band / 2);
+        r.setAttribute("width", Math.max(0, hole.r - hole.l + 0.5)); r.setAttribute("height", band);
+      });
+      for (let i = holes.length; i < 5; i++) { h.clips[i].setAttribute("width", 0); h.clips[i].setAttribute("height", 0); }
+      h.gu.setAttribute("opacity", 0.6); h.gt.setAttribute("opacity", 0.6);
+      drawHoles(h.holes, holes, true);
+      seen.add(word);
+    }
+    for (const [word, h] of hintThreads) {
+      if (!seen.has(word)) { h.gu.remove(); h.gt.remove(); if (h.clip) h.clip.remove(); if (h.holes) h.holes.g.remove(); hintThreads.delete(word); }
+    }
+  }
+  function clearHints() {
+    for (const [, h] of hintThreads) { h.gu.remove(); h.gt.remove(); if (h.clip) h.clip.remove(); if (h.holes) h.holes.g.remove(); }
+    hintThreads.clear();
+  }
+
+  /* ── live pick: a needle stitches the current selection in real time ──── */
+  const PICK_SLACK = () => cfg.slack * 0.6;
+  let pick = null, pickRaf = null;
+
+  function needleEl(parent) {
+    const g = mk("g", "gt-needle"); g.setAttribute("visibility", "hidden");
+    // a stylised sewing needle: sharp tip at +x, tapering to a narrow rounded eye end
+    const body = mk("path", "gt-needle-body");
+    body.setAttribute("d", "M16 0 L-7 -2.2 Q-12 -2.2 -12 0 Q-12 2.2 -7 2.2 Z");
+    g.appendChild(body);
+    const eye = mk("ellipse", "gt-needle-eye");
+    eye.setAttribute("cx", "-8"); eye.setAttribute("cy", "0");
+    eye.setAttribute("rx", "2.1"); eye.setAttribute("ry", "0.95"); g.appendChild(eye);
+    parent.appendChild(g); return g;
+  }
+  // a pool of hole dots (2 per tile) that read as the thread's pierce points
+  function holesGroup() { const g = mk("g", "gt-holes"); over.appendChild(g); return { g, dots: [] }; }
+  function drawHoles(hg, holes, show) {
+    let i = 0;
+    const want = show ? holes.length * 2 : 0;
+    while (hg.dots.length < want) {
+      const c = mk("circle", "gt-hole"); c.setAttribute("r", 2.1); hg.g.appendChild(c); hg.dots.push(c);
+    }
+    for (const h of holes) {
+      for (const x of [h.l, h.r]) {
+        const c = hg.dots[i++];
+        if (!c) continue;
+        c.setAttribute("cx", x); c.setAttribute("cy", h.y); c.style.opacity = show ? 1 : 0;
+      }
+    }
+    for (; i < hg.dots.length; i++) hg.dots[i].style.opacity = 0;
+  }
+
+  function ensurePick() {
+    if (pick) return pick;
+    const gu = mk("g", "gt-thread linen"), gt = mk("g", "gt-thread linen");
+    const u = mk("path", "gt-u"); gu.appendChild(u);
+    const clip = mk("clipPath"); clip.setAttribute("id", "gtclip-pick");
+    const clips = [0, 1, 2, 3, 4].map(() => { const r = mk("rect"); clip.appendChild(r); return r; });
+    overDefs.appendChild(clip);
+    const tp = mk("path", "gt-t"); tp.setAttribute("clip-path", "url(#gtclip-pick)"); gt.appendChild(tp);
+    under.appendChild(gu); over.appendChild(gt);
+    pick = { gu, gt, under: u, top: tp, clip, clips, needle: needleEl(fx), holes: holesGroup(),
+             tiles: [], len: 0, targetLen: 0, drop: 0, opacity: 1, needleOn: false, tint: "" };
+    return pick;
+  }
+  function pickHoles(tileEls) {
+    return tileEls.map(t => { const r = relRect(t); const ins = r.w * INSET; return { l: r.x + ins, r: r.x + r.w - ins, y: r.y + r.h * 0.8, h: r.h }; });
+  }
+  function pickPath(holes, full, slack) {
+    if (!holes.length) return "";
+    const s = slack == null ? PICK_SLACK() : slack, first = holes[0], last = holes[holes.length - 1];
+    const sx = first.l - TAIL, sy = first.y;
+    let d = "M" + sx + " " + sy, px = sx, py = sy;
+    const curve = (x, y, sag) => { d += " Q" + ((px + x) / 2) + " " + ((py + y) / 2 + sag) + " " + x + " " + y; px = x; py = y; };
+    for (const h of holes) { curve(h.l, h.y, s); d += " L" + h.r + " " + h.y; px = h.r; py = h.y; }
+    if (full) curve(last.r + TAIL, last.y, s);
+    return d;
+  }
+  const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+  const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // fast off the tap, easing to a long slow finish as the needle rises and threads through
+  const easeOutQuint = t => 1 - Math.pow(1 - t, 5);
+
+  // advance the drawn length from its current value to the selection's full
+  // length over a paced, eased tween (not a frame-rate lerp), so each stitch
+  // reads at a deliberate speed. Growing uses the stitch pace; shrinking
+  // (backtrack / unpick) pulls back a touch quicker.
+  function animatePick(prevCount, nextCount) {
+    if (!pick) return;
+    if (pickRaf != null) { cancelAnimationFrame(pickRaf); pickRaf = null; }
+    const from = pick.len, to = pick.targetLen;
+    if (prefersReducedMotion() || from === to) { pick.len = to; renderPick(); return; }
+    const grew = nextCount >= prevCount;
+    const dur = grew
+      ? cfg.pace * (nextCount === 5 ? 3.4 : 2.8)
+      : 200 + 80 * Math.max(1, prevCount - nextCount);
+    const ease = grew ? easeOutQuint : easeInOutCubic;
+    const t0 = performance.now();
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur);
+      pick.len = from + (to - from) * ease(k);
+      renderPick();
+      pickRaf = k < 1 ? requestAnimationFrame(step) : null;
+    };
+    pickRaf = requestAnimationFrame(step);
+  }
+
+  // sync the live stitch to the given selection ([{block}] from the engine)
+  function setPick(selection, opts = {}) {
+    const nodes = selection.map(s => nodeMap.get(s.block.id)).filter(Boolean);
+    if (!nodes.length) { clearPick(); return; }
+    const prevCount = pick ? pick.tiles.length : 0;
+    const p = ensurePick();
+    p.tiles = nodes;
+    p.tint = opts.cls || "";
+    p.gu.setAttribute("class", "gt-thread linen" + (p.tint ? " gt-thread--" + p.tint : ""));
+    p.gt.setAttribute("class", "gt-thread linen" + (p.tint ? " gt-thread--" + p.tint : ""));
+    p.needleOn = !opts.settle;
+    p.drop = 0; p.opacity = 1;
+    const holes = pickHoles(nodes);
+    const d = pickPath(holes, nodes.length === 5);
+    p.under.setAttribute("d", d);
+    p.targetLen = p.under.getTotalLength ? p.under.getTotalLength() : 0;
+    animatePick(prevCount, nodes.length);
+  }
+  function renderPick() {
+    if (!pick) return;
+    size(under); size(over); size(fx);
+    const holes = pickHoles(pick.tiles);
+    if (!holes.length) { pick.needle.setAttribute("visibility", "hidden"); return; }
+    const d = pickPath(holes, pick.tiles.length === 5);
+    pick.under.setAttribute("d", d); pick.top.setAttribute("d", d);
+    holes.forEach((h, i) => {
+      const band = h.h * 0.4, r = pick.clips[i];
+      r.setAttribute("x", h.l); r.setAttribute("y", h.y - band / 2);
+      r.setAttribute("width", Math.max(0, h.r - h.l + 0.5)); r.setAttribute("height", band);
+    });
+    for (let i = holes.length; i < 5; i++) { pick.clips[i].setAttribute("width", 0); pick.clips[i].setAttribute("height", 0); }
+    const L = pick.under.getTotalLength ? pick.under.getTotalLength() : 0;
+    const len = Math.min(pick.len, L);
+    const op = pick.opacity * (1 - pick.drop);
+    const tf = pick.drop > 0 ? "translate(0 " + (26 * pick.drop * pick.drop) + ")" : "";
+    for (const g of [pick.gu, pick.gt]) {
+      g.setAttribute("opacity", op);
+      if (tf) g.setAttribute("transform", tf); else g.removeAttribute("transform");
+    }
+    for (const pth of [pick.under, pick.top]) { pth.style.strokeDasharray = len + " " + (L + 50); pth.style.strokeDashoffset = 0; }
+    let nx = -Infinity;
+    if (pick.needleOn && pick.drop === 0 && len > 0.5 && L > 0) {
+      const a = pick.under.getPointAtLength(Math.max(0, len - 2)), b = pick.under.getPointAtLength(len);
+      const face = holes.some(h => b.x >= h.l && b.x <= h.r);
+      pick.needle.setAttribute("visibility", "visible");
+      pick.needle.setAttribute("transform", "translate(" + b.x + " " + b.y + ") rotate(" +
+        (Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI) + ") scale(" + (face ? 1 : 0.85) + ")");
+      pick.needle.setAttribute("opacity", 1);
+      nx = b.x;
+    } else pick.needle.setAttribute("visibility", "hidden");
+    drawHoles(pick.holes, holes, true);
+    pick.tiles.forEach((node, i) => {
+      const h = holes[i];
+      node.classList.toggle("block--dip", pick.needleOn && nx >= h.l - 8 && nx <= h.r + 8);
+    });
+  }
+  // tween primitive. Active tweens are tracked so a board tap can skip an
+  // ending sequence straight to its end state.
+  const tweens = new Set();
+  let endingActive = false, skipping = false;
+  function tween(dur, fn) {
+    return new Promise(res => {
+      if (dur <= 0 || prefersReducedMotion() || skipping) { fn(1); res(); return; }
+      const o = { done: false };
+      o.finish = () => { if (o.done) return; o.done = true; tweens.delete(o); fn(1); res(); };
+      tweens.add(o);
+      const t0 = performance.now();
+      const step = now => {
+        if (o.done) return;
+        const k = Math.min(1, (now - t0) / dur); fn(k);
+        if (k < 1) requestAnimationFrame(step); else o.finish();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  async function runEnding(fn) {
+    endingActive = true; skipping = false;
+    try { await fn(); } finally { endingActive = false; skipping = false; }
+  }
+  function skip() {
+    if (!endingActive) return;
+    skipping = true;
+    for (const o of [...tweens]) o.finish();
+  }
+  // wrong word: needle vanishes, the thread drops away and fades
+  async function snip() {
+    if (!pick) return;
+    pick.needleOn = false;
+    await tween(420, k => { pick.drop = k; renderPick(); });
+    clearPick();
+  }
+  // the needle head stays parked at the current stitch tip after you release,
+  // marking how far along the row you are
+  function endPick() { if (pick) renderPick(); }
+  function clearPick() {
+    if (!pick) return;
+    for (const node of pick.tiles) node.classList.remove("block--dip");
+    pick.gu.remove(); pick.gt.remove(); pick.needle.remove(); pick.holes.g.remove();
+    if (pick.clip) pick.clip.remove();   // drop the clipPath too, or its id collides with the next pick's
+    pick = null;
+    if (pickRaf != null) { cancelAnimationFrame(pickRaf); pickRaf = null; }
+  }
+
+  /* ── thread-driven collapse ────────────────────────────────────────────
+     The sewn thread becomes the word's thread and pulls its tiles up into the
+     seam at the top. Pulled from the right (rightmost tile leaves first), with
+     a backOut landing and the slack springing to 0 so the thread snaps taut.
+     The caller's `commit()` runs at pull start so the remaining tiles fall up
+     (FLIP) at the same time. The theme word's thread crossfades to gold first. */
+  function setPickKind(kind) {
+    if (!pick) return;
+    pick.gu.setAttribute("class", "gt-thread " + kind + " gt-thread--xfade");
+    pick.gt.setAttribute("class", "gt-thread " + kind + " gt-thread--xfade");
+  }
+  function placeClone(node, r) {
+    node.style.left = r.x + "px"; node.style.top = r.y + "px";
+    node.style.width = r.w + "px"; node.style.height = r.h + "px";
+  }
+  function activeHoles() {
+    return pick.tiles.map(c => { const r = relRect(c); const ins = r.w * INSET; return { l: r.x + ins, r: r.x + r.w - ins, y: r.y + r.h * 0.8, h: r.h }; });
+  }
+  function drawActive(slack) {
+    if (!pick) return;
+    size(under); size(over); size(fx);
+    const holes = activeHoles();
+    const d = pickPath(holes, true, slack);
+    pick.under.setAttribute("d", d); pick.top.setAttribute("d", d);
+    holes.forEach((h, i) => {
+      const band = h.h * 0.4, r = pick.clips[i];
+      r.setAttribute("x", h.l); r.setAttribute("y", h.y - band / 2);
+      r.setAttribute("width", Math.max(0, h.r - h.l + 0.5)); r.setAttribute("height", band);
+    });
+    for (const pth of [pick.under, pick.top]) { pth.style.strokeDasharray = "none"; pth.style.strokeDashoffset = 0; }
+    pick.needle.setAttribute("visibility", "hidden");
+    drawHoles(pick.holes, holes, true);
+  }
+  async function collapseWord(opts) {
+    const { word, selNodes, isTheme, commit } = opts;
+    const reduce = prefersReducedMotion();
+    collapsing = word;               // suppress this word's found thread until the clones land
+    if (!ready) { selNodes.forEach(n => n.remove()); collapsing = null; commit(); renderFound(); return; }
+    const wrap = document.querySelector(".grid-wrap");
+    const starts = selNodes.map(relRect);
+    // clones fly to the seam while the originals leave the grid
+    const clones = selNodes.map((n, i) => {
+      const c = n.cloneNode(true);
+      c.classList.remove("block--dip", "block--pressed", "block--available", "block--selected");
+      c.classList.add("gt-fly");
+      placeClone(c, starts[i]);
+      wrap.appendChild(c);
+      return c;
+    });
+    selNodes.forEach(n => n.remove());
+    // the live stitch becomes this word's thread
+    if (!pick) ensurePick();
+    pick.tiles = clones; pick.needleOn = false; pick.drop = 0; pick.opacity = 1;
+    setPickKind(isTheme ? "gold" : "linen");
+    if (isTheme) {
+      // 'found!' beat — the theme tiles flush gold (matching the thread's
+      // linen→gold crossfade) and bounce once, left→right, before they lift
+      clones.forEach(c => c.classList.add("gt-fly--found"));
+      if (!reduce) {
+        clones.forEach((c, i) => { c.style.animationDelay = (i * 36) + "ms"; c.classList.add("gt-fly--pop"); });
+        drawActive(cfg.slack);
+        await tween(380 + 4 * 36 + 120, () => {});     // gold crossfade + staggered bounce
+        clones.forEach(c => { c.classList.remove("gt-fly--pop"); c.style.animationDelay = ""; });
+      }
+    }
+    drawActive(cfg.slack);
+    // commit state → seam appears and the remaining tiles fall up, together with the pull
+    commit();
+    const seam = foundMap.get(word);
+    if (seam) seam.style.visibility = "hidden";       // clones stand in until they land
+    const targets = seam ? seam.__tiles.map(relRect) : starts;
+    const stagger = cfg.stagger, D = reduce ? 0 : cfg.pull, total = D + 4 * stagger;
+    const s0 = cfg.slack;
+    await tween(total, k => {
+      const ms = k * total;
+      clones.forEach((c, i) => {
+        const e = pullEase((ms - (4 - i) * stagger) / (D || 1));
+        const a = starts[i], b = targets[i];
+        placeClone(c, { x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e) });
+      });
+      drawActive(k >= 1 ? 0 : s0 * springSlack(clamp(ms / (D || 1))));
+    });
+    clones.forEach(c => c.remove());
+    if (seam) seam.style.visibility = "";
+    collapsing = null;
+    if (pick) { pick.gu.setAttribute("opacity", 0); pick.gt.setAttribute("opacity", 0); }
+    renderFound();              // the persistent found thread appears
+    await needleFinish(word);   // the needle runs off the end: through the knot, or off the edge
+    clearPick();
+    renderFound();
+  }
+
+  // the word has landed — the needle finishes its run along the taut thread and
+  // leaves: toward the knot if this stack anchors one, otherwise off the right
+  // edge, dropping away as it goes
+  async function needleFinish(word) {
+    if (!pick || prefersReducedMotion()) return;
+    const seam = foundMap.get(word);
+    if (!seam || !seam.__tiles) return;
+    const last = relRect(seam.__tiles[seam.__tiles.length - 1]);
+    const ins = last.w * INSET;
+    const y = last.y + last.h * 0.8;
+    const start = { x: last.x + last.w - ins, y };   // last pierce hole
+    const tail = { x: last.x + last.w + TAIL, y };   // where the thread's tail ends
+    const n = pick.needle;
+    n.setAttribute("visibility", "visible"); n.setAttribute("opacity", 1);
+    // 1) slide out of the last tile to the tail tip
+    await tween(220, k => {
+      const x = lerp(start.x, tail.x, easeInOutSine(k));
+      n.setAttribute("transform", "translate(" + x + " " + y + ") rotate(0)");
+    });
+    const kp = knotPoint();
+    if (kp) {
+      // 2a) continue into the knot, fading as it arrives
+      const ang = Math.atan2(kp.y - tail.y, kp.x - tail.x) * 180 / Math.PI;
+      await tween(240, k => {
+        n.setAttribute("transform", "translate(" + lerp(tail.x, kp.x, k) + " " +
+          lerp(tail.y, kp.y, k) + ") rotate(" + ang + ")");
+        n.setAttribute("opacity", 1 - k * k);
+      });
+    } else {
+      // 2b) run off the right edge and drop away
+      await tween(260, k => {
+        n.setAttribute("transform", "translate(" + (tail.x + 72 * k) + " " +
+          (tail.y + 24 * k * k) + ") rotate(" + (16 * k) + ")");
+        n.setAttribute("opacity", 1 - k);
+      });
+    }
+    n.setAttribute("visibility", "hidden");
+  }
+
+  /* ── tassel knot ───────────────────────────────────────────────────────
+     When the theme word lands, every found thread's right tail sweeps into an
+     amber knot that hangs off the right edge of the stack (as in the
+     reference); the knot then pops. Words found after the theme tie in one at
+     a time (tail sweep + a small tug on the gold strip + a knot pulse). Tap the
+     board to skip. */
+  let knot = null;
+  function knotPoint() {
+    const themeWord = puzzle().categoryWord;
+    if (!S.foundBlocks.some(f => f.word === themeWord)) return null;
+    const seam = foundMap.get(themeWord);
+    if (!seam || !seam.__tiles) return null;
+    const last = relRect(seam.__tiles[seam.__tiles.length - 1]);
+    const off = Math.min(last.h * 0.42, 18);      // dangle just off the right edge, in the seam gutter
+    return { x: last.x + last.w + off, y: last.y + last.h * 0.8, s: Math.min(1, last.h / 80) };
+  }
+  function buildKnot() {
+    if (knot) return knot;
+    const g = mk("g", "gt-knot"); g.setAttribute("opacity", 0);
+    const inner = mk("g");
+    const p1 = mk("path"); p1.setAttribute("d", "M0 0 q14 -12 18 -2 q-4 9 -18 2 M0 0 q14 12 18 2");
+    p1.setAttribute("fill", "none"); p1.setAttribute("stroke", "var(--gt-gold)");
+    p1.setAttribute("stroke-width", 3); p1.setAttribute("stroke-linecap", "round"); inner.appendChild(p1);
+    const p2 = mk("path"); p2.setAttribute("d", "M2 2 q8 10 4 20 M1 3 q2 11 -6 18");
+    p2.setAttribute("fill", "none"); p2.setAttribute("stroke", "var(--gt-gold)");
+    p2.setAttribute("stroke-width", 2.5); p2.setAttribute("stroke-linecap", "round"); inner.appendChild(p2);
+    const c = mk("circle"); c.setAttribute("r", 6.5); c.setAttribute("fill", "var(--gt-gold)");
+    c.setAttribute("stroke", "var(--background)"); c.setAttribute("stroke-width", 2); inner.appendChild(c);
+    g.appendChild(inner); fx.appendChild(g);
+    knot = { g, inner, s: 0, opacity: 0 };
+    return knot;
+  }
+  function drawKnot() {
+    if (!knot) return;
+    const kp = knotPoint();
+    knot.g.setAttribute("opacity", knot.opacity);
+    if (kp) knot.inner.setAttribute("transform",
+      "translate(" + kp.x + " " + kp.y + ") scale(" + (Math.max(0, knot.s) * kp.s) + ")");
+  }
+  function setKnotT(words, v) { for (const w of words) { const t = threads.get(w); if (t) t.knotT = v; } }
+  async function popKnot() {
+    buildKnot(); knot.opacity = 1; haptic("theme");
+    await tween(420, k => { knot.s = backOut(k); drawKnot(); });
+    knot.s = 1; drawKnot();
+  }
+  const pulseKnot = () => tween(320, k => { knot.s = 1 + 0.28 * Math.sin(Math.PI * k); drawKnot(); });
+  async function tug() {
+    const seam = foundMap.get(puzzle().categoryWord);
+    if (!seam) return;
+    await tween(380, k => { seam.style.transform = "translateY(" + (6 * Math.sin(k * Math.PI * 2) * (1 - k)) + "px)"; renderFound(); });
+    seam.style.transform = "";
+  }
+  async function tieTogether() {
+    await runEnding(async () => {
+      buildKnot();
+      const words = S.foundBlocks.map(f => f.word);   // everything found so far
+      if (!prefersReducedMotion()) await tween(120, () => {});
+      await tween(cfg.knot, k => { setKnotT(words, easeInOutCubic(k)); renderFound(); });
+      await popKnot();
+    });
+  }
+  async function tieIn(word) {
+    await runEnding(async () => {
+      buildKnot();
+      await Promise.all([
+        tween(cfg.knot * 0.6, k => { setKnotT([word], easeInOutCubic(k)); renderFound(); }),
+        tug()
+      ]);
+      await pulseKnot();
+    });
+  }
+  async function replayEnding() {
+    const themeWord = puzzle().categoryWord;
+    if (!S.foundBlocks.some(f => f.word === themeWord)) return;
+    for (const [, t] of threads) t.knotT = 0;
+    if (knot) { knot.s = 0; knot.opacity = 0; }
+    renderFound();
+    await tieTogether();
+  }
+  // re-establish the finished tassel knot statically (no animation) — used when
+  // a completed/theme-tied board is restored, e.g. returning from the tutorial
+  function restoreEnding() {
+    const themeWord = puzzle().categoryWord;
+    if (!S.foundBlocks.some(f => f.word === themeWord)) return;
+    buildKnot();
+    for (const f of S.foundBlocks) { const t = threads.get(f.word); if (t) t.knotT = 1; }
+    knot.opacity = 1; knot.s = 1;
+    renderFound();
+  }
+
+  return { cfg, init, renderFound, renderHints, clear, isReady: () => ready,
+           setPick, renderPick, snip, endPick, clearPick, collapseWord,
+           tieTogether, tieIn, replayEnding, restoreEnding, skip };
+})();
+
+async function handleInvalidWord() {
+  drawThread({ cls: "invalid" });
+  haptic("wrong");
+  toast("Not a valid word");
+
+  // snip: the needle vanishes and the thread drops away + fades, while the
+  // picked tiles shake (both run together)
+  await Promise.all([
+    GT.snip(),
+    Promise.all(S.selection.map(s => {
+      const node = nodeMap.get(s.block.id);
+      return anim(node, [
+        { transform: "translateX(0)", offset: 0 },
+        { transform: "translateX(-2px)", offset: 0.1 },
+        { transform: "translateX(2px)", offset: 0.2 },
+        { transform: "translateX(-2px)", offset: 0.3 },
+        { transform: "translateX(2px)", offset: 0.4 },
+        { transform: "translateX(-2px)", offset: 0.5 },
+        { transform: "translateX(2px)", offset: 0.6 },
+        { transform: "translateX(-2px)", offset: 0.7 },
+        { transform: "translateX(2px)", offset: 0.8 },
+        { transform: "translateX(-2px)", offset: 0.9 },
+        { transform: "translateX(0)", offset: 1 }
+      ], { duration: 600, reduced: [{ opacity: 1 }, { opacity: 0.5 }, { opacity: 1 }] });
+    }))
+  ]);
+
+  S.selection = [];
+  S.checking = false;
+  renderGrid();
+  renderWordPreview();
+  drawThread();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CLOCK
+   ════════════════════════════════════════════════════════════════════════ */
+let tick = null;
+const mmss = s => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+function startClock() {
+  S.running = true;
+  clearInterval(tick);
+  tick = setInterval(() => { S.seconds++; $("#timer").textContent = mmss(S.seconds); }, 1000);
+}
+function stopClock() { S.running = false; clearInterval(tick); }
+
+/* ── pause ─────────────────────────────────────────────────────────────── */
+$("#pauseBtn").onclick = () => { stopClock(); $("#pause").classList.add("on"); };
+$("#resumeBtn").onclick = () => { $("#pause").classList.remove("on"); if (!S.won) startClock(); };
+
+/* ════════════════════════════════════════════════════════════════════════
+   COMPLETION
+   ════════════════════════════════════════════════════════════════════════ */
+// true while the player is reviewing a finished puzzle (reached via the done
+// screen's "Back to puzzle"), which is the only time the "Back to results"
+// button shows. Cleared whenever a fresh round is set up.
+let reviewingResult = false;
+function finish() {
+  S.won = true;
+  stopClock();
+  S.solved.add(S.date);
+  saveProgress();
+  const total = S.seconds;
+  const ratio = total / PAR_SECONDS;
+  $("#done-time").textContent = mmss(total);
+  $("#done-band").textContent = BANDS.find(([t]) => ratio <= t)[1];
+  go("done");
+  setTimeout(() => $("#done-title").classList.add("animate-celebrate"), 300);
+}
+
+/* ── share ──────────────────────────────────────────────────────────────── */
+const shareBtn = $("#shareBtn");
+if (shareBtn) shareBtn.onclick = async () => {
+  const p = puzzle();
+  const lines = S.found.map(w => (p.emojis[w] || "🧵") + " " + w);
+  const txt = "Threads \xb7 " + fmtShort(S.date) + "\n\u23f1 " + mmss(S.seconds)
+    + " \xb7 " + S.found.length + "/5\n\n" + lines.join("\n")
+    + "\n\nCategory: " + p.category + " " + (p.emojis[p.categoryWord] || "")
+    + "\n\ndailymail.co.uk/puzzles";
+  try { await navigator.clipboard.writeText(txt); toast("Copied"); }
+  catch { toast("Copy failed"); }
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   SHELL
+   ════════════════════════════════════════════════════════════════════════ */
+const MARK = size => '<img src="Thread.svg" width="' + size + '" height="' + size + '" alt="Threads" style="display:block;image-rendering:pixelated">';
+
+function go(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $("#s-" + name).classList.add("on");
+  document.body.style.background =
+    name === "start" || name === "levels" ? "var(--_surface)"
+    : name === "done" ? "#FDEED8"
+    : "var(--background)";
+  closeSheet();
+  if (name === "levels") renderLevels();
+  if (name === "play") {
+    $("#s-play").classList.toggle("tut", !!S.tutorial);
+    const back = $("#backResultsBtn");
+    if (back) back.hidden = !(reviewingResult && S.won && !S.tutorial);   // only when reviewing a finished puzzle
+    if (!S.tutorial && !S.started.has(S.date)) { S.started.add(S.date); saveProgress(); }
+    renderGrid();
+    renderWordPreview();
+    updateHud();
+    requestAnimationFrame(() => drawThread());
+  }
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("[data-go]").forEach(b =>
+  b.onclick = () => go(b.dataset.go));
+
+/* ── level select ──────────────────────────────────────────────────────── */
+// which levels appear on the landing, and how they're labelled. The root build
+// shows three curated games (Levels 1, 5, 3 → Game 1, 2, 3); the all-levels
+// build sets this to every date.
+const HOME = { dates: DATES, label: "Level" };
+function levelLabel(date) {
+  const hi = HOME.dates.indexOf(date);
+  return HOME.label + " " + (hi >= 0 ? hi + 1 : DATES.indexOf(date) + 1);
+}
+function selectLevel(date) {
+  S.date = date;
+  resetRound();
+  $("#start-cat").textContent = levelLabel(date);
+  $("#start-date").textContent = S.solved.has(date) ? "Completed \u2713"
+    : S.started.has(date) ? "In progress" : "5 hidden words";
+  go("start");
+}
+// jump straight into the next game in the home set, looping back to the first
+function nextGame() {
+  const idx = HOME.dates.indexOf(S.date);
+  const next = HOME.dates[(idx + 1) % HOME.dates.length];
+  S.date = next;
+  resetRound();
+  go("play");
+}
+
+function renderLevels() {
+  const grid = $("#levels-grid");
+  grid.innerHTML = "";
+  const doneCount = HOME.dates.filter(d => S.solved.has(d)).length;
+  $("#levels-progress").textContent = doneCount + " of " + HOME.dates.length + " " + HOME.label.toLowerCase() + "s complete";
+  HOME.dates.forEach((date, i) => {
+    const done = S.solved.has(date);
+    const started = S.started.has(date) && !done;
+    const card = el("button", "lvl" + (done ? " lvl--done" : ""));
+    const status = done ? "Solved" : started ? "Resume" : "Play";
+    card.innerHTML =
+      '<span class="lvl__cat">' + HOME.label + ' ' + (i + 1) + '</span>' +
+      '<span class="lvl__status">' + status + '</span>';
+    card.onclick = () => selectLevel(date);
+    grid.appendChild(card);
+  });
+}
+
+$("#nextGameBtn").onclick = nextGame;
+$("#backPuzzleBtn").onclick = () => { reviewingResult = true; go("play"); };
+$("#backResultsBtn").onclick = () => go("done");
+
+const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
+const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
+$("#helpBtn").onclick = openSheet;
+$("#scrim").onclick = closeSheet;
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("#sheet").classList.contains("on")) closeSheet();
+});
+$("#replayTutBtn").onclick = () => { closeSheet(); startTutorial(); };
+
+/* how to play — the interactive tutorial; auto-shown on first visit, plus the
+   in-game help modal (Replay tutorial) */
+const SEEN_HOW = "threads-how-seen";
+$("#startPlayBtn").onclick = () => {
+  if (!localStorage.getItem(SEEN_HOW)) startTutorial();
+  else go("play");
+};
+
+/* ── settings (Phase 0.6) — persisted via saveSettings(); applied at boot ─ */
+function applySettings() {
+  document.documentElement.classList.toggle("dark", S.settings.dark);
+  document.documentElement.dataset.scheme = S.settings.scheme;
+}
+function updateReplayBtn() {
+  const b = $("#replayBtn");
+  if (b) b.hidden = !S.foundBlocks.some(f => f.word === puzzle().categoryWord);
+}
+
+function resetRound() {
+  S.selection = []; S.found = []; S.foundBlocks = []; S.removed.clear();
+  S.seconds = 0; S.won = false; S.checking = false; S.themeTied = false;
+  reviewingResult = false;   // a fresh board is never a result review
+  stopClock(); $("#timer").textContent = "00:00";
+  clearGridNodes();
+  if (traySlots) buildTray();
+  initGrid();
+  loadHints();            // restore any persisted hint badges for this level
+  updateReplayBtn();
+  updateHintBtn();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TUTORIAL (Phase 7) — scripted flow on the real engine. Each step swaps the
+   copy + prompt pill; validation is gated so the player is funnelled through
+   ELEPHANT → ANIMAL (theme) → finish. No timer, hints or pause; progress for
+   the real level is snapshotted on entry and restored on exit.
+   ════════════════════════════════════════════════════════════════════════ */
+const TUT_STEPS = {
+  1: { copy: "Weave the five hidden phrases. Every phrase uses one tile from each column, left to right.",
+       pill: "Try guessing Elephant", target: "ELEPHANT" },
+  2: { copy: "Nice one! One phrase is the <strong>Golden Thread</strong>, the theme that links the others.",
+       pill: "Try guessing Animal", target: "ANIMAL" },
+  3: { copy: "Well done! Animal is the <strong>Golden Thread</strong>. Now find the 3 remaining animals.",
+       pill: "Finish the puzzle", target: null },
+  4: { copy: "Well done! You found all five phrases.",
+       pill: "That\u2019s the game.", target: null, done: true }
+};
+let tutSnapshot = null;
+
+function setTutorialStep(n) {
+  if (!S.tutorial) return;
+  S.tutorial.step = n;
+  const s = TUT_STEPS[n];
+  $("#tut-copy").innerHTML = s.copy;
+  const pill = $("#tut-pill");
+  pill.textContent = s.pill;
+  pill.classList.toggle("tut-pill--action", !!s.done);
+  pill.disabled = !s.done;
+}
+
+// advance the script after a valid word lands (gating guarantees which word)
+function tutorialOnWordFound(word) {
+  const p = puzzle();
+  if (S.found.length === p.words.length) { S.won = true; setTutorialStep(4); return; }
+  if (S.tutorial.step === 1) setTutorialStep(2);        // ELEPHANT found
+  else if (S.tutorial.step === 2) setTutorialStep(3);   // ANIMAL (theme) found
+  // step 3: remaining members land until completion flips to step 4
+}
+
+function startTutorial() {
+  // snapshot the real round so reopening the tutorial mid-game loses nothing
+  tutSnapshot = {
+    date: S.date, found: S.found.slice(), foundBlocks: S.foundBlocks.slice(),
+    removed: new Set(S.removed), seconds: S.seconds, won: S.won,
+    themeTied: S.themeTied, hints: S.hints.slice(), running: S.running
+  };
+  S.tutorial = { step: 0 };
+  resetRound();                       // rebuilds the board from TUTORIAL_PUZZLE
+  $("#s-play").classList.add("tut");
+  setTutorialStep(1);
+  go("play");
+}
+
+function endTutorial() {
+  S.tutorial = null;
+  localStorage.setItem(SEEN_HOW, "1");
+  $("#s-play").classList.remove("tut");
+  const s = tutSnapshot; tutSnapshot = null;
+  if (s) {
+    S.date = s.date; S.found = s.found; S.foundBlocks = s.foundBlocks;
+    S.removed = s.removed; S.seconds = s.seconds; S.won = s.won;
+    S.themeTied = s.themeTied; S.hints = s.hints; S.selection = [];
+    S.checking = false;
+    $("#timer").textContent = mmss(S.seconds);
+    clearGridNodes();
+    initGrid();
+    renderGrid(); renderWordPreview(); updateHud(); updateHintBtn(); updateReplayBtn();
+    if (S.themeTied) GT.restoreEnding();   // bring back the tied knot if the real game had it
+    go("play");
+    if (s.running && !S.won) startClock();
+  } else {
+    go("levels");
+  }
+}
+
+$("#tutSkip").onclick = endTutorial;
+$("#tut-pill").onclick = () => {
+  if (S.tutorial && TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].done) endTutorial();
+};
+
+/* dates */
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const FULLM = ["January","February","March","April","May","June","July",
+  "August","September","October","November","December"];
+const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd"
+  : n % 10 === 3 && n !== 13 ? "rd" : "th");
+function fmtShort(iso) { const d = new Date(iso + "T00:00:00Z");
+  return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
+function fmtLong(iso) { const d = new Date(iso + "T00:00:00Z");
+  return DAYS[d.getUTCDay()] + ", " + FULLM[d.getUTCMonth()] + " " + ord(d.getUTCDate()); }
+
+/* countdown */
+setInterval(() => {
+  const now = new Date();
+  const next = new Date(now); next.setHours(24, 0, 0, 0);
+  const s = Math.floor((next - now) / 1000);
+  const el = $("#countdown");
+  if (el) el.textContent = "Next Threads in: " +
+    [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60]
+      .map(n => String(n).padStart(2, "0")).join(":");
+}, 1000);
+
+let toastT;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1600);
+}
+
+/* ── thread redraw on resize / rotate (Phase 0.4) ──────────────────────── */
+(function observeThreadResize() {
+  const wrap = document.querySelector(".grid-wrap");
+  if (wrap && "ResizeObserver" in window) {
+    const ro = new ResizeObserver(() => {
+      if (S.selection.length) GT.renderPick();
+      GT.renderFound();
+    });
+    ro.observe(wrap);
+  }
+  window.addEventListener("orientationchange", () => {
+    requestAnimationFrame(() => { if (S.selection.length) GT.renderPick(); GT.renderFound(); });
+  });
+})();
+
+/* ── boot ──────────────────────────────────────────────────────────────── */
+$("#mark-lg").innerHTML = MARK(76);
+$("#mark-sm").innerHTML = MARK(32);
+$("#mark-done").innerHTML = MARK(52);
+$("#mark-levels").innerHTML = MARK(64);
+loadSettings();
+applySettings();
+GT.init();
+loadProgress();
+initGrid();
+go("levels");
+</script>
+</body>
+</html>

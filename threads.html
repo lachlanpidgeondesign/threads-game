@@ -163,6 +163,8 @@ body{
 }
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 svg{display:block}
+/* the hidden attribute must win over component display rules (e.g. .btn) */
+[hidden]{display:none!important}
 
 #app{
   min-height:100dvh;display:flex;flex-direction:column;align-items:center;
@@ -301,9 +303,9 @@ svg{display:block}
 .gt-thread.gold .gt-t{stroke:var(--gt-gold);stroke-width:5}
 .gt-thread.linen .gt-u{stroke:var(--gt-linen-deep);stroke-width:4}
 .gt-thread.linen .gt-t{stroke:var(--gt-linen);stroke-width:4.5}
-.gt-needle .gt-needle-body{fill:var(--gt-needle-fill);stroke:var(--gt-needle-stroke);
+.gt-needle .gt-needle-body{fill:var(--background);stroke:var(--foreground);
   stroke-width:1.4;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-.gt-needle .gt-needle-eye{fill:var(--gt-needle-stroke)}
+.gt-needle .gt-needle-eye{fill:var(--foreground)}
 .gt-knot path,.gt-knot circle{vector-effect:non-scaling-stroke}
 /* a collapsing tile detached from the grid, flying up into the seam */
 .gt-fly{position:absolute;margin:0;min-height:0;box-sizing:border-box;z-index:1;
@@ -372,62 +374,45 @@ svg{display:block}
   text-align:left;flex:1}
 .tile__n{font-family:var(--font-heading);font-weight:700;font-size:.9375rem}
 .tile__s{font-size:.8125rem;opacity:.8}
-.streak{display:grid;grid-template-columns:repeat(7,1fr)}
-.streak__d{display:flex;flex-direction:column;align-items:center;gap:.5rem;font-size:.875rem}
-.streak__o{width:34px;height:34px;border-radius:999px;background:var(--muted);
-  display:grid;place-items:center}
-.streak__o--on{background:var(--_detail);color:var(--_on-detail)}
 
 /* ── misc ─────────────────────────────────────────────────────────────── */
 .howtop{display:flex;justify-content:flex-end;width:100%;max-width:25rem;padding:.5rem}
 
-/* ── how to play ──────────────────────────────────────────────────────── */
-.how-content{gap:1.25rem;padding-block:2.5rem}
-.how-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:22rem;margin-inline:auto}
-.how-block{aspect-ratio:1;display:grid;place-items:center;
-  font-family:var(--font-body);font-weight:700;
-  font-size:clamp(.8rem,4vw,1.1rem);color:var(--foreground);
-  background:oklch(0.96 0 0);border-radius:10px;border:1px solid oklch(0.88 0 0);
-  box-shadow:0 4px 0 oklch(0.78 0 0),0 4px 8px oklch(0 0 0/.08)}
-.how-block--theme{background:var(--_accent);color:var(--_on-accent);
-  border-color:color-mix(in oklch,var(--_detail) 50%,var(--_accent));
-  transform:translateY(3px);
-  box-shadow:0 1px 0 color-mix(in oklch,var(--_detail) 55%,var(--_accent)),0 1px 2px oklch(0 0 0/.06)}
-.how-steps{display:flex;flex-direction:column;gap:1rem;width:100%;max-width:22rem;margin-inline:auto;text-align:left}
-.how-step{display:flex;gap:.75rem;align-items:flex-start}
-.how-step__n{flex:0 0 1.75rem;height:1.75rem;border-radius:999px;
-  display:grid;place-items:center;font-family:var(--font-heading);font-weight:700;
-  font-size:.9375rem;background:var(--_detail);color:var(--_on-detail)}
-.how-step__t{font-size:.9375rem;line-height:1.45;padding-top:.15rem}
-.how-chip{display:inline-block;padding:.05rem .4rem;border-radius:6px;
-  background:var(--_accent);color:var(--_on-accent);font-weight:700}
-:root.dark .how-block{background:oklch(0.25 0 0);color:var(--foreground);
-  border-color:oklch(0.32 0 0);box-shadow:0 4px 0 oklch(0.18 0 0),0 4px 8px oklch(0 0 0/.2)}
+/* ── tutorial (Phase 7) — chrome shown over the real engine on #s-play ──── */
+.tut-head{display:none;flex-direction:column;align-items:center;width:100%;
+  max-width:25rem;margin-inline:auto;text-align:center;position:relative}
+#s-play.tut .tut-head{display:flex}
+/* in tutorial mode the nav band, HUD line, hint + pause controls are hidden */
+#s-play.tut .navband,#s-play.tut #hud{display:none}
+.tut-skip{position:absolute;top:-.25rem;right:.25rem;background:none;border:none;
+  font-family:var(--font-body);font-size:1rem;color:var(--muted-foreground);
+  padding:.25rem .5rem;cursor:pointer}
+.tut-title{font-family:var(--font-heading);font-weight:700;font-size:1.6rem;
+  line-height:1.15;margin:1.5rem 0 .5rem}
+.tut-copy{font-size:1.0625rem;line-height:1.4;max-width:21rem;margin:0 auto .875rem;
+  min-height:calc(1.4em * 2)}
+.tut-copy strong{font-style:italic}
+.tut-pill{display:inline-block;border:none;border-radius:999px;
+  padding:.7rem 1.4rem;margin-bottom:.5rem;cursor:default;
+  font-family:var(--font-body);font-weight:700;font-size:1.0625rem;
+  background:var(--_accent);color:var(--_on-accent);
+  box-shadow:0 1px 2px oklch(0 0 0/.08)}
+.tut-pill--action{cursor:pointer;transition:transform .1s}
+.tut-pill--action:active{transform:scale(.97)}
 
 /* ── levels select ────────────────────────────────────────────────────── */
 .levels-content{gap:1rem;padding-block:2rem;max-width:30rem}
 .levels-head{display:flex;flex-direction:column;align-items:center;gap:.25rem;width:100%}
-.levels-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;width:100%}
-.lvl{position:relative;display:flex;flex-direction:column;gap:.5rem;
-  padding:.875rem;border-radius:var(--radius);text-align:left;
+.levels-grid{display:grid;grid-template-columns:1fr;gap:.75rem;width:100%}
+.lvl{position:relative;display:flex;align-items:center;justify-content:space-between;gap:.75rem;
+  padding:1.1rem 1.25rem;border-radius:var(--radius);text-align:left;
   background:var(--background);border:1px solid var(--border);
   box-shadow:0 1px 2px oklch(0 0 0/.05);transition:transform .1s,box-shadow .15s}
 .lvl:active{transform:scale(.98)}
-.lvl__top{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
-.lvl__n{font-family:var(--font-heading);font-weight:700;font-size:.8125rem;
-  color:var(--muted-foreground)}
-.lvl__cat{font-family:var(--font-heading);font-weight:700;font-size:1.0625rem;
+.lvl__cat{font-family:var(--font-heading);font-weight:700;font-size:1.25rem;
   line-height:1.2;color:var(--foreground)}
-.lvl__emoji{font-size:1.25rem;line-height:1}
-.lvl__badge{display:inline-flex;align-items:center;gap:.25rem;align-self:flex-start;
-  font-size:.6875rem;font-weight:700;padding:.15rem .5rem;border-radius:999px;
-  text-transform:uppercase;letter-spacing:.03em}
-.lvl__badge--new{background:var(--muted);color:var(--muted-foreground)}
-.lvl__badge--started{background:color-mix(in oklch,var(--_accent) 35%,var(--background));
-  color:var(--_detail)}
-.lvl__badge--done{background:var(--_detail);color:var(--_on-detail)}
+.lvl__status{font-weight:700;font-size:1rem;color:var(--_detail)}
 .lvl--done{border-color:color-mix(in oklch,var(--_detail) 45%,var(--border))}
-.lvl__check{position:absolute;top:.5rem;right:.5rem}
 :root.dark .lvl{background:oklch(0.22 0 0)}
 
 /* ── pause overlay ────────────────────────────────────────────────────── */
@@ -440,12 +425,13 @@ svg{display:block}
 .scrim{position:fixed;inset:0;z-index:70;background:oklch(0 0 0/.4);opacity:0;
   pointer-events:none;transition:opacity .2s}
 .scrim.on{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:80;
-  background:var(--popover);border-radius:1rem 1rem 0 0;padding:.75rem 1rem 2rem;
-  max-width:32rem;margin-inline:auto;transform:translateY(101%);
-  transition:transform .28s cubic-bezier(.32,.72,0,1);
-  box-shadow:0 -8px 32px oklch(0 0 0/.18)}
-.sheet.on{transform:translateY(0)}
+.sheet{position:fixed;left:50%;top:50%;z-index:80;
+  background:var(--popover);border-radius:1rem;padding:1.5rem 1.25rem;
+  width:calc(100% - 2rem);max-width:28rem;
+  transform:translate(-50%,-50%) scale(.96);opacity:0;pointer-events:none;
+  transition:transform .22s cubic-bezier(.32,.72,0,1),opacity .22s;
+  box-shadow:0 12px 40px oklch(0 0 0/.24)}
+.sheet.on{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
 .sheet__grip{width:36px;height:4px;border-radius:999px;background:var(--border);
   margin:0 auto .75rem}
 .row{display:flex;align-items:center;gap:.75rem;width:100%;padding:.875rem .25rem;
@@ -525,63 +511,6 @@ svg{display:block}
     </div>
   </section>
 
-  <!-- ══ HOW TO PLAY ════════════════════════════════════════════════════ -->
-  <section class="screen" id="s-how" style="background:var(--background)">
-    <div class="content how-content">
-      <h1 class="h1">How to Play Threads</h1>
-      <p class="lede muted">Weave the five hidden words. Every word uses one block from each column, left to right — and blocks can hold more than one letter.</p>
-
-      <div class="how-grid">
-        <span class="how-block">EL</span>
-        <span class="how-block">EE</span>
-        <span class="how-block how-block--theme">M</span>
-        <span class="how-block">N</span>
-        <span class="how-block">A</span>
-
-        <span class="how-block">M</span>
-        <span class="how-block">EP</span>
-        <span class="how-block">RK</span>
-        <span class="how-block">F</span>
-        <span class="how-block">T</span>
-
-        <span class="how-block how-block--theme">A</span>
-        <span class="how-block how-block--theme">NI</span>
-        <span class="how-block">HA</span>
-        <span class="how-block">A</span>
-        <span class="how-block">FE</span>
-
-        <span class="how-block">P</span>
-        <span class="how-block">IR</span>
-        <span class="how-block">A</span>
-        <span class="how-block how-block--theme">A</span>
-        <span class="how-block how-block--theme">L</span>
-
-        <span class="how-block">G</span>
-        <span class="how-block">A</span>
-        <span class="how-block">N</span>
-        <span class="how-block">D</span>
-        <span class="how-block">T</span>
-      </div>
-
-      <div class="how-steps">
-        <div class="how-step">
-          <span class="how-step__n">1</span>
-          <p class="how-step__t">Tap one block in each column, working left to right, to thread a word together.</p>
-        </div>
-        <div class="how-step">
-          <span class="how-step__n">2</span>
-          <p class="how-step__t">Spell a hidden word correctly and it locks in. Find all five to finish the puzzle.</p>
-        </div>
-        <div class="how-step">
-          <span class="how-step__n">3</span>
-          <p class="how-step__t">One word is the <span class="how-chip">theme word</span> (here, <strong>ANIMAL</strong>, highlighted above). It names the category — the other four words (Elephant, Meerkat, Panda, Giraffe) all belong to it.</p>
-        </div>
-      </div>
-
-      <button class="btn btn--start btn--block" style="max-width:16rem;margin-top:.5rem" data-go="play">PLAY NOW!</button>
-    </div>
-  </section>
-
   <!-- ══ PLAY ═══════════════════════════════════════════════════════════ -->
   <section class="screen" id="s-play" style="background:var(--background)">
     <div class="navband">
@@ -597,62 +526,46 @@ svg{display:block}
           <button class="iconbtn" id="hintBtn" aria-label="Hint">
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
           </button>
-          <button class="iconbtn" id="menuBtn" aria-label="Settings">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+          <button class="iconbtn" id="helpBtn" aria-label="How to play">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
           </button>
         </div>
       </nav>
     </div>
     <div class="content" style="gap:.875rem;padding-top:1rem">
+      <div class="tut-head" id="tut-head">
+        <button class="tut-skip" id="tutSkip" type="button">Skip</button>
+        <h2 class="tut-title">How to Play Threads</h2>
+        <p class="tut-copy" id="tut-copy"></p>
+        <button class="tut-pill" id="tut-pill" type="button" disabled></button>
+      </div>
       <p class="small muted" id="hud">Find 5 hidden words</p>
       <div class="word-preview" id="word-preview"></div>
       <div class="grid-wrap">
         <div class="tgrid" id="tgrid"></div>
       </div>
+      <button class="btn btn--outline" id="backResultsBtn" hidden style="margin-top:1rem">Back to results</button>
     </div>
   </section>
 
   <!-- ══ COMPLETED ══════════════════════════════════════════════════════ -->
-  <section class="screen" id="s-done" style="background:var(--background)">
-    <div class="howtop" style="justify-content:space-between">
-      <button class="textbtn" data-go="levels">
+  <section class="screen" id="s-done" style="background:#FDEED8">
+    <div class="howtop" style="justify-content:flex-start">
+      <button class="textbtn" id="backPuzzleBtn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        All levels
-      </button>
-      <button class="textbtn" data-go="play">Back to puzzle
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        Back to puzzle
       </button>
     </div>
     <div class="content" style="gap:.75rem">
       <div id="mark-done"></div>
-      <p class="eyebrow" id="done-id"></p>
-      <h2 class="h1" id="done-title" style="margin-bottom:.25rem">Puzzle Complete!</h2>
+      <h2 class="h1" id="done-title" style="margin-bottom:.25rem">Threads</h2>
 
       <div class="card">
-        <p class="small" style="text-transform:uppercase">Time</p>
+        <p class="small" style="text-transform:uppercase">Your score</p>
         <p class="figure" id="done-time" style="margin:.25rem 0 .5rem">00:00</p>
         <p id="done-band" style="margin-bottom:1.25rem"></p>
-        <button class="btn btn--primary btn--block" id="shareBtn" style="margin-bottom:.75rem">Share</button>
-        <button class="btn btn--outline btn--block">Sign up for the newsletter</button>
-      </div>
-
-      <p class="small" id="countdown" style="margin:.25rem 0"></p>
-
-      <div class="card">
-        <h3 class="h2" style="margin-bottom:.875rem">More games</h3>
-        <div class="btnrow">
-          <button class="tile" style="--tile:var(--game-guessr-surface)">
-            <span><span class="tile__n">Trace</span><br><span class="tile__s">Can you beat the clock?</span></span>
-          </button>
-          <button class="tile" style="--tile:var(--game-color-connect-surface)">
-            <span><span class="tile__n">Relink</span><br><span class="tile__s">Find the imposters</span></span>
-          </button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 class="h2" style="margin-bottom:1rem" id="streak-title">1-day streak</h3>
-        <div class="streak" id="streak"></div>
+        <button class="btn btn--primary btn--block" id="nextGameBtn" style="margin-bottom:.75rem">Next game</button>
+        <button class="btn btn--outline btn--block" data-go="levels">Back to all games</button>
       </div>
     </div>
   </section>
@@ -671,47 +584,15 @@ svg{display:block}
 
 <!-- ══ SHEET ════════════════════════════════════════════════════════════ -->
 <div class="scrim" id="scrim"></div>
-<div class="sheet" id="sheet" role="dialog" aria-label="Settings">
-  <div class="sheet__grip"></div>
-  <button class="row" id="howBtn" style="cursor:pointer">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
-    <span class="row__t">How to play</span>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted-foreground)"><path d="m9 18 6-6-6-6"/></svg>
-  </button>
-  <button class="row" id="shuffleBtn" style="cursor:pointer">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
-    <span class="row__t">Shuffle tiles</span>
-  </button>
-  <div class="row">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-    <span class="row__t">Sound</span>
-    <button class="sw" id="sw-sound" aria-label="Sound"></button>
-  </div>
-  <div class="row">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
-    <span class="row__t">Dark mode</span>
-    <button class="sw" id="sw-dark" aria-label="Dark mode"></button>
-  </div>
-
-  <p class="sheet__section">Prototype</p>
-  <label class="row" for="set-scheme">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="10" cy="18" r="2.5"/></svg>
-    <span class="row__t">Colour scheme</span>
-    <select class="sel" id="set-scheme">
-      <option value="brand">Brand contrast</option>
-      <option value="rainbow">Rainbow members</option>
-      <option value="ultramarine">Ultramarine members</option>
-    </select>
-  </label>
-  <button class="row" id="replayBtn" hidden style="cursor:pointer">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
-    <span class="row__t">Replay ending</span>
-  </button>
-  <div class="row">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M15 3v18M4 8h5M4 16h5M15 8h5M15 16h5"/></svg>
-    <span class="row__t">Haptics</span>
-    <button class="sw" id="sw-haptics" aria-label="Haptics"></button>
-  </div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="How to play">
+  <h2 class="h2" style="margin:.25rem .25rem .75rem">How to Play Threads</h2>
+  <p class="small muted" style="padding:0 .25rem;line-height:1.55;font-size:1.125rem">
+    Weave five hidden phrases. Build each one left to right, choosing a single tile from every column. A tile can hold more than one letter.
+  </p>
+  <p class="small muted" style="padding:.625rem .25rem 0;line-height:1.55;font-size:1.125rem">
+    One of them is the <strong>Golden Thread</strong>: the theme running through the other four. Find all five to finish the puzzle.
+  </p>
+  <button class="btn btn--outline btn--block" id="replayTutBtn" style="margin-top:1.25rem">Replay tutorial</button>
 </div>
 
 <!-- hidden iOS switch-checkbox for a system haptic tick (Phase 0.7 experiment) -->
@@ -720,7 +601,7 @@ svg{display:block}
 <label for="haptic-tick" id="haptic-tick-label" aria-hidden="true"
   style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px"></label>
 
-<div class="toast" id="toast">Copied</div>
+<div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
 
 <script>
 "use strict";
@@ -911,7 +792,6 @@ const BANDS = [
 
 /* ── level identity ────────────────────────────────────────────────────── */
 const DATES = Object.keys(PACK).sort();
-const TODAY = DATES[DATES.length - 1];
 
 /* ── progress persistence (started / completed per level) ──────────────── */
 const PROGRESS_KEY = "threads-progress";
@@ -922,9 +802,11 @@ function loadProgress() {
   S.solved = new Set(saved.completed || []);
 }
 function saveProgress() {
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify({
-    started: [...S.started], completed: [...S.solved]
-  }));
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+      started: [...S.started], completed: [...S.solved]
+    }));
+  } catch (e) {}
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -942,7 +824,7 @@ function loadSettings() {
   S.settings = Object.assign({}, SETTINGS_DEFAULTS, saved);
 }
 function saveSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings));
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings)); } catch (e) {}
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -953,6 +835,7 @@ function allHints() {
   try { return JSON.parse(localStorage.getItem(HINTS_KEY)) || {}; } catch (e) { return {}; }
 }
 function loadHints() {
+  if (S.tutorial) { S.hints = []; return; }   // no hints in the tutorial
   const stored = allHints()[S.date] || [];
   // keep only hints whose tiles still exist on the current board
   const ids = new Set();
@@ -962,7 +845,7 @@ function loadHints() {
 function saveHints() {
   const map = allHints();
   if (S.hints.length) map[S.date] = S.hints; else delete map[S.date];
-  localStorage.setItem(HINTS_KEY, JSON.stringify(map));
+  try { localStorage.setItem(HINTS_KEY, JSON.stringify(map)); } catch (e) {}
 }
 function hintIds() {
   const s = new Set();
@@ -1065,13 +948,31 @@ const S = {
   sound: true,
   checking: false,      // debounce word check
   themeTied: false,     // theme word found → knot ending has played
-  hints: []             // [{word, ids:[col0Id, col1Id]}] active hints (Phase 6)
+  hints: [],            // [{word, ids:[col0Id, col1Id]}] active hints (Phase 6)
+  tutorial: null        // Phase 7: {step} while the interactive tutorial runs
+};
+
+/* Phase 7: the interactive tutorial runs the real engine on its own puzzle.
+   `puzzle()` returns this while S.tutorial is active, so grid building, word
+   validation, collapse and the celebration all work unchanged. */
+const TUTORIAL_PUZZLE = {
+  grid: [
+    ["EL","EE","M","N","A"],
+    ["M","EP","RK","F","T"],
+    ["A","NI","HA","A","FE"],
+    ["P","IR","A","A","L"],
+    ["G","A","N","D","T"]
+  ],
+  words: ["ELEPHANT","ANIMAL","MEERKAT","GIRAFFE","PANDA"],
+  category: "Animals", categoryWord: "ANIMAL",
+  members: ["ELEPHANT","GIRAFFE","MEERKAT","PANDA"],
+  emojis: {"ANIMAL":"🐾","ELEPHANT":"🐘","GIRAFFE":"🦒","MEERKAT":"🦫","PANDA":"🐼"}
 };
 
 const $ = s => document.querySelector(s);
 const el = (t, cls, html) => { const e = document.createElement(t);
   if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-function puzzle() { return PACK[S.date]; }
+function puzzle() { return S.tutorial ? TUTORIAL_PUZZLE : PACK[S.date]; }
 
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1334,9 +1235,9 @@ function renderWordPreview() {
 function updateHud() {
   const p = puzzle();
   const remaining = p.words.length - S.found.length;
-  $("#hud").textContent = S.won ? "All words found!"
-    : remaining === p.words.length ? "Find 5 hidden words \xb7 select blocks left \u2192 right"
-    : remaining + " word" + (remaining > 1 ? "s" : "") + " remaining";
+  $("#hud").textContent = S.won ? "All phrases found!"
+    : remaining === p.words.length ? "Find 5 hidden phrases"
+    : remaining + " phrase" + (remaining > 1 ? "s" : "") + " remaining";
 }
 
 /* ── thread rendering (Golden Thread sewn stitch) ─────────────────────── */
@@ -1383,7 +1284,7 @@ function hitTile(x, y) {
 let dragging = false;
 
 function afterSelectionChange() {
-  if (!S.running && !S.won) startClock();
+  if (!S.running && !S.won && !S.tutorial) startClock();
   renderGrid();
   renderWordPreview();
   drawThread();   // GT syncs the live sewn stitch to the new selection
@@ -1394,8 +1295,8 @@ function maybeAutoCheck() {
   if (drag) drag.locked = true;
   renderGrid();      // drop "available" highlights
   drawThread();      // stitch the fifth tile (needle runs off the right edge)
-  // let the final stitch land (paced at ~pace×1.9), then validate
-  (async () => { await wait(prefersReducedMotion() ? 0 : GT.cfg.pace * 1.9); await checkAndHandleWord(); })();
+  // let the final stitch land (paced at ~pace×3.4), then validate
+  (async () => { await wait(prefersReducedMotion() ? 0 : GT.cfg.pace * 3.4); await checkAndHandleWord(); })();
   return true;
 }
 
@@ -1523,8 +1424,6 @@ function endDrag(e, isCancel) {
 grid.addEventListener("pointerup", e => endDrag(e, false));
 grid.addEventListener("pointercancel", e => endDrag(e, true));
 
-$("#shuffleBtn").onclick = () => { closeSheet(); shuffleColumns(); };
-
 function clearSelection() { S.selection = []; }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1616,7 +1515,14 @@ async function checkAndHandleWord() {
   const word = S.selection.map(s => s.block.text).join("");
   const p = puzzle();
 
-  if (p.words.includes(word) && !S.found.includes(word)) {
+  let ok = p.words.includes(word) && !S.found.includes(word);
+  // tutorial steps 1 & 2 only accept their target word; other complete words
+  // shake as normal so the player is funnelled to the scripted answer
+  if (ok && S.tutorial) {
+    const target = TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].target;
+    if (target && word !== target) ok = false;
+  }
+  if (ok) {
     await handleValidWord(word);
   } else {
     await handleInvalidWord();
@@ -1669,7 +1575,6 @@ async function handleValidWord(word) {
      knot at the right edge of the gold seam. Member words found *after* the
      theme tie in one at a time. */
   if (isTheme) {
-    toast("They're all " + p.category.toLowerCase() + "!");
     await GT.tieTogether();
     S.themeTied = true;
   } else if (S.themeTied) {
@@ -1677,7 +1582,9 @@ async function handleValidWord(word) {
   }
 
   // Completion?
-  if (S.found.length === p.words.length && !S.won) {
+  if (S.tutorial) {
+    tutorialOnWordFound(word);
+  } else if (S.found.length === p.words.length && !S.won) {
     await wait(reduce ? 0 : 400);
     finish();
   }
@@ -1819,6 +1726,9 @@ const GT = (() => {
     threads.clear();
     clearHints();
     clearPick();
+    if (knot) { knot.g.remove(); knot = null; }   // drop the tassel knot so it can't linger (e.g. after the tutorial)
+    collapsing = null;
+    endingActive = false; skipping = false;
   }
 
   /* ── persistent hint guide: a faint, needle-less stitch kept through the
@@ -1878,11 +1788,11 @@ const GT = (() => {
     const g = mk("g", "gt-needle"); g.setAttribute("visibility", "hidden");
     // a stylised sewing needle: sharp tip at +x, tapering to a narrow rounded eye end
     const body = mk("path", "gt-needle-body");
-    body.setAttribute("d", "M16 0 L-7 -1.7 Q-12 -1.7 -12 0 Q-12 1.7 -7 1.7 Z");
+    body.setAttribute("d", "M16 0 L-7 -2.2 Q-12 -2.2 -12 0 Q-12 2.2 -7 2.2 Z");
     g.appendChild(body);
     const eye = mk("ellipse", "gt-needle-eye");
     eye.setAttribute("cx", "-8"); eye.setAttribute("cy", "0");
-    eye.setAttribute("rx", "1.9"); eye.setAttribute("ry", "0.7"); g.appendChild(eye);
+    eye.setAttribute("rx", "2.1"); eye.setAttribute("ry", "0.95"); g.appendChild(eye);
     parent.appendChild(g); return g;
   }
   // a pool of hole dots (2 per tile) that read as the thread's pierce points
@@ -1931,6 +1841,8 @@ const GT = (() => {
   }
   const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
   const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // fast off the tap, easing to a long slow finish as the needle rises and threads through
+  const easeOutQuint = t => 1 - Math.pow(1 - t, 5);
 
   // advance the drawn length from its current value to the selection's full
   // length over a paced, eased tween (not a frame-rate lerp), so each stitch
@@ -1943,9 +1855,9 @@ const GT = (() => {
     if (prefersReducedMotion() || from === to) { pick.len = to; renderPick(); return; }
     const grew = nextCount >= prevCount;
     const dur = grew
-      ? cfg.pace * (nextCount === 5 ? 1.9 : 1.4)
+      ? cfg.pace * (nextCount === 5 ? 3.4 : 2.8)
       : 200 + 80 * Math.max(1, prevCount - nextCount);
-    const ease = grew ? easeInOutSine : easeInOutCubic;
+    const ease = grew ? easeOutQuint : easeInOutCubic;
     const t0 = performance.now();
     const step = now => {
       const k = Math.min(1, (now - t0) / dur);
@@ -2144,8 +2056,50 @@ const GT = (() => {
     clones.forEach(c => c.remove());
     if (seam) seam.style.visibility = "";
     collapsing = null;
+    if (pick) { pick.gu.setAttribute("opacity", 0); pick.gt.setAttribute("opacity", 0); }
+    renderFound();              // the persistent found thread appears
+    await needleFinish(word);   // the needle runs off the end: through the knot, or off the edge
     clearPick();
     renderFound();
+  }
+
+  // the word has landed — the needle finishes its run along the taut thread and
+  // leaves: toward the knot if this stack anchors one, otherwise off the right
+  // edge, dropping away as it goes
+  async function needleFinish(word) {
+    if (!pick || prefersReducedMotion()) return;
+    const seam = foundMap.get(word);
+    if (!seam || !seam.__tiles) return;
+    const last = relRect(seam.__tiles[seam.__tiles.length - 1]);
+    const ins = last.w * INSET;
+    const y = last.y + last.h * 0.8;
+    const start = { x: last.x + last.w - ins, y };   // last pierce hole
+    const tail = { x: last.x + last.w + TAIL, y };   // where the thread's tail ends
+    const n = pick.needle;
+    n.setAttribute("visibility", "visible"); n.setAttribute("opacity", 1);
+    // 1) slide out of the last tile to the tail tip
+    await tween(220, k => {
+      const x = lerp(start.x, tail.x, easeInOutSine(k));
+      n.setAttribute("transform", "translate(" + x + " " + y + ") rotate(0)");
+    });
+    const kp = knotPoint();
+    if (kp) {
+      // 2a) continue into the knot, fading as it arrives
+      const ang = Math.atan2(kp.y - tail.y, kp.x - tail.x) * 180 / Math.PI;
+      await tween(240, k => {
+        n.setAttribute("transform", "translate(" + lerp(tail.x, kp.x, k) + " " +
+          lerp(tail.y, kp.y, k) + ") rotate(" + ang + ")");
+        n.setAttribute("opacity", 1 - k * k);
+      });
+    } else {
+      // 2b) run off the right edge and drop away
+      await tween(260, k => {
+        n.setAttribute("transform", "translate(" + (tail.x + 72 * k) + " " +
+          (tail.y + 24 * k * k) + ") rotate(" + (16 * k) + ")");
+        n.setAttribute("opacity", 1 - k);
+      });
+    }
+    n.setAttribute("visibility", "hidden");
   }
 
   /* ── tassel knot ───────────────────────────────────────────────────────
@@ -2227,10 +2181,20 @@ const GT = (() => {
     renderFound();
     await tieTogether();
   }
+  // re-establish the finished tassel knot statically (no animation) — used when
+  // a completed/theme-tied board is restored, e.g. returning from the tutorial
+  function restoreEnding() {
+    const themeWord = puzzle().categoryWord;
+    if (!S.foundBlocks.some(f => f.word === themeWord)) return;
+    buildKnot();
+    for (const f of S.foundBlocks) { const t = threads.get(f.word); if (t) t.knotT = 1; }
+    knot.opacity = 1; knot.s = 1;
+    renderFound();
+  }
 
   return { cfg, init, renderFound, renderHints, clear, isReady: () => ready,
            setPick, renderPick, snip, endPick, clearPick, collapseWord,
-           tieTogether, tieIn, replayEnding, skip };
+           tieTogether, tieIn, replayEnding, restoreEnding, skip };
 })();
 
 async function handleInvalidWord() {
@@ -2286,6 +2250,10 @@ $("#resumeBtn").onclick = () => { $("#pause").classList.remove("on"); if (!S.won
 /* ════════════════════════════════════════════════════════════════════════
    COMPLETION
    ════════════════════════════════════════════════════════════════════════ */
+// true while the player is reviewing a finished puzzle (reached via the done
+// screen's "Back to puzzle"), which is the only time the "Back to results"
+// button shows. Cleared whenever a fresh round is set up.
+let reviewingResult = false;
 function finish() {
   S.won = true;
   stopClock();
@@ -2295,14 +2263,13 @@ function finish() {
   const ratio = total / PAR_SECONDS;
   $("#done-time").textContent = mmss(total);
   $("#done-band").textContent = BANDS.find(([t]) => ratio <= t)[1];
-  $("#done-id").textContent = "Threads \xb7 " + fmtShort(S.date);
-  buildStreak();
   go("done");
   setTimeout(() => $("#done-title").classList.add("animate-celebrate"), 300);
 }
 
 /* ── share ──────────────────────────────────────────────────────────────── */
-$("#shareBtn").onclick = async () => {
+const shareBtn = $("#shareBtn");
+if (shareBtn) shareBtn.onclick = async () => {
   const p = puzzle();
   const lines = S.found.map(w => (p.emojis[w] || "🧵") + " " + w);
   const txt = "Threads \xb7 " + fmtShort(S.date) + "\n\u23f1 " + mmss(S.seconds)
@@ -2323,12 +2290,15 @@ function go(name) {
   $("#s-" + name).classList.add("on");
   document.body.style.background =
     name === "start" || name === "levels" ? "var(--_surface)"
-    : name === "done" ? "var(--root-tint)"
+    : name === "done" ? "#FDEED8"
     : "var(--background)";
   closeSheet();
   if (name === "levels") renderLevels();
   if (name === "play") {
-    if (!S.started.has(S.date)) { S.started.add(S.date); saveProgress(); }
+    $("#s-play").classList.toggle("tut", !!S.tutorial);
+    const back = $("#backResultsBtn");
+    if (back) back.hidden = !(reviewingResult && S.won && !S.tutorial);   // only when reviewing a finished puzzle
+    if (!S.tutorial && !S.started.has(S.date)) { S.started.add(S.date); saveProgress(); }
     renderGrid();
     renderWordPreview();
     updateHud();
@@ -2340,89 +2310,84 @@ document.querySelectorAll("[data-go]").forEach(b =>
   b.onclick = () => go(b.dataset.go));
 
 /* ── level select ──────────────────────────────────────────────────────── */
+// which levels appear on the landing, and how they're labelled. The root build
+// shows three curated games (Levels 1, 5, 3 → Game 1, 2, 3); the all-levels
+// build sets this to every date.
+const HOME = { dates: [DATES[0], DATES[4], DATES[2]], label: "Game" };
+function levelLabel(date) {
+  const hi = HOME.dates.indexOf(date);
+  return HOME.label + " " + (hi >= 0 ? hi + 1 : DATES.indexOf(date) + 1);
+}
 function selectLevel(date) {
   S.date = date;
   resetRound();
-  $("#start-cat").textContent = "Level " + (DATES.indexOf(date) + 1);
+  $("#start-cat").textContent = levelLabel(date);
   $("#start-date").textContent = S.solved.has(date) ? "Completed \u2713"
     : S.started.has(date) ? "In progress" : "5 hidden words";
   go("start");
+}
+// jump straight into the next game in the home set, looping back to the first
+function nextGame() {
+  const idx = HOME.dates.indexOf(S.date);
+  const next = HOME.dates[(idx + 1) % HOME.dates.length];
+  S.date = next;
+  resetRound();
+  go("play");
 }
 
 function renderLevels() {
   const grid = $("#levels-grid");
   grid.innerHTML = "";
-  const doneCount = DATES.filter(d => S.solved.has(d)).length;
-  $("#levels-progress").textContent = doneCount + " of " + DATES.length + " levels complete";
-  DATES.forEach((date, i) => {
+  const doneCount = HOME.dates.filter(d => S.solved.has(d)).length;
+  $("#levels-progress").textContent = doneCount + " of " + HOME.dates.length + " " + HOME.label.toLowerCase() + "s complete";
+  HOME.dates.forEach((date, i) => {
     const done = S.solved.has(date);
     const started = S.started.has(date) && !done;
     const card = el("button", "lvl" + (done ? " lvl--done" : ""));
-    let badge, badgeCls;
-    if (done) { badge = "Completed"; badgeCls = "done"; }
-    else if (started) { badge = "In progress"; badgeCls = "started"; }
-    else { badge = "New"; badgeCls = "new"; }
+    const status = done ? "Solved" : started ? "Resume" : "Play";
     card.innerHTML =
-      '<span class="lvl__cat">Level ' + (i + 1) + '</span>' +
-      '<span class="lvl__badge lvl__badge--' + badgeCls + '">' + badge + '</span>';
+      '<span class="lvl__cat">' + HOME.label + ' ' + (i + 1) + '</span>' +
+      '<span class="lvl__status">' + status + '</span>';
     card.onclick = () => selectLevel(date);
     grid.appendChild(card);
   });
 }
 
-const openSheet = () => { updateReplayBtn(); $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
-const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
-$("#menuBtn").onclick = openSheet;
-$("#scrim").onclick = closeSheet;
+$("#nextGameBtn").onclick = nextGame;
+$("#backPuzzleBtn").onclick = () => { reviewingResult = true; go("play"); };
+$("#backResultsBtn").onclick = () => go("done");
 
-/* how to play — auto-show on first visit only, plus menu access */
+const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
+const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
+$("#helpBtn").onclick = openSheet;
+$("#scrim").onclick = closeSheet;
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("#sheet").classList.contains("on")) closeSheet();
+});
+$("#replayTutBtn").onclick = () => { closeSheet(); startTutorial(); };
+
+/* how to play — the interactive tutorial; auto-shown on first visit, plus the
+   in-game help modal (Replay tutorial) */
 const SEEN_HOW = "threads-how-seen";
 $("#startPlayBtn").onclick = () => {
-  if (!localStorage.getItem(SEEN_HOW)) {
-    localStorage.setItem(SEEN_HOW, "1");
-    go("how");
-  } else {
-    go("play");
-  }
+  if (!localStorage.getItem(SEEN_HOW)) startTutorial();
+  else go("play");
 };
-$("#howBtn").onclick = () => { closeSheet(); go("how"); };
 
-/* ── settings controls (Phase 0.6) — persisted via saveSettings() ──────── */
+/* ── settings (Phase 0.6) — persisted via saveSettings(); applied at boot ─ */
 function applySettings() {
   document.documentElement.classList.toggle("dark", S.settings.dark);
   document.documentElement.dataset.scheme = S.settings.scheme;
-  $("#sw-dark").classList.toggle("sw--on", S.settings.dark);
-  $("#sw-haptics").classList.toggle("sw--on", S.settings.haptics);
-  const sc = $("#set-scheme"); if (sc) sc.value = S.settings.scheme;
 }
-
-$("#sw-dark").onclick = () => {
-  S.settings.dark = !S.settings.dark;
-  saveSettings(); applySettings();
-};
-$("#sw-haptics").onclick = () => {
-  S.settings.haptics = !S.settings.haptics;
-  saveSettings(); applySettings();
-  if (S.settings.haptics) haptic("select");
-};
-$("#set-scheme").onchange = e => {
-  S.settings.scheme = e.target.value; saveSettings(); applySettings();
-};
-$("#replayBtn").onclick = () => { closeSheet(); GT.replayEnding(); };
 function updateReplayBtn() {
   const b = $("#replayBtn");
   if (b) b.hidden = !S.foundBlocks.some(f => f.word === puzzle().categoryWord);
 }
 
-$("#sw-sound").onclick = e => {
-  S.sound = !S.sound;
-  e.currentTarget.classList.toggle("sw--on", S.sound);
-};
-$("#sw-sound").classList.add("sw--on");
-
 function resetRound() {
   S.selection = []; S.found = []; S.foundBlocks = []; S.removed.clear();
   S.seconds = 0; S.won = false; S.checking = false; S.themeTied = false;
+  reviewingResult = false;   // a fresh board is never a result review
   stopClock(); $("#timer").textContent = "00:00";
   clearGridNodes();
   if (traySlots) buildTray();
@@ -2432,20 +2397,84 @@ function resetRound() {
   updateHintBtn();
 }
 
-/* streak */
-function buildStreak() {
-  const box = $("#streak"); box.innerHTML = "";
-  const dow = new Date(S.date + "T00:00:00Z").getUTCDay();
-  const todayIdx = (dow + 6) % 7;
-  ["M","T","W","T","F","S","S"].forEach((L, i) => {
-    const d = el("div", "streak__d", L);
-    const o = el("span", "streak__o" + (i === todayIdx ? " streak__o--on" : ""));
-    if (i === todayIdx) o.innerHTML =
-      '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 4-2 5-2 8a2 2 0 0 0 4 0c0-1 1 1 1 3a3 3 0 0 1-6 0c0-1-1 0-1 2a5 5 0 0 0 10 0c0-6-6-8-6-13z"/></svg>';
-    d.appendChild(o); box.appendChild(d);
-  });
-  $("#streak-title").textContent = "1-day streak";
+/* ════════════════════════════════════════════════════════════════════════
+   TUTORIAL (Phase 7) — scripted flow on the real engine. Each step swaps the
+   copy + prompt pill; validation is gated so the player is funnelled through
+   ELEPHANT → ANIMAL (theme) → finish. No timer, hints or pause; progress for
+   the real level is snapshotted on entry and restored on exit.
+   ════════════════════════════════════════════════════════════════════════ */
+const TUT_STEPS = {
+  1: { copy: "Weave the five hidden phrases. Every phrase uses one tile from each column.",
+       pill: "Try guessing Elephant", target: "ELEPHANT" },
+  2: { copy: "Nice one! One phrase is the <strong>Golden Thread</strong>, the theme that links the others.",
+       pill: "Try guessing Animal", target: "ANIMAL" },
+  3: { copy: "Well done! Animal is the <strong>Golden Thread</strong>. Now find the 3 remaining animals.",
+       pill: "Finish the puzzle", target: null },
+  4: { copy: "Well done! You found all five phrases.",
+       pill: "That\u2019s the game.", target: null, done: true }
+};
+let tutSnapshot = null;
+
+function setTutorialStep(n) {
+  if (!S.tutorial) return;
+  S.tutorial.step = n;
+  const s = TUT_STEPS[n];
+  $("#tut-copy").innerHTML = s.copy;
+  const pill = $("#tut-pill");
+  pill.textContent = s.pill;
+  pill.classList.toggle("tut-pill--action", !!s.done);
+  pill.disabled = !s.done;
 }
+
+// advance the script after a valid word lands (gating guarantees which word)
+function tutorialOnWordFound(word) {
+  const p = puzzle();
+  if (S.found.length === p.words.length) { S.won = true; setTutorialStep(4); return; }
+  if (S.tutorial.step === 1) setTutorialStep(2);        // ELEPHANT found
+  else if (S.tutorial.step === 2) setTutorialStep(3);   // ANIMAL (theme) found
+  // step 3: remaining members land until completion flips to step 4
+}
+
+function startTutorial() {
+  // snapshot the real round so reopening the tutorial mid-game loses nothing
+  tutSnapshot = {
+    date: S.date, found: S.found.slice(), foundBlocks: S.foundBlocks.slice(),
+    removed: new Set(S.removed), seconds: S.seconds, won: S.won,
+    themeTied: S.themeTied, hints: S.hints.slice(), running: S.running
+  };
+  S.tutorial = { step: 0 };
+  resetRound();                       // rebuilds the board from TUTORIAL_PUZZLE
+  $("#s-play").classList.add("tut");
+  setTutorialStep(1);
+  go("play");
+}
+
+function endTutorial() {
+  S.tutorial = null;
+  localStorage.setItem(SEEN_HOW, "1");
+  $("#s-play").classList.remove("tut");
+  const s = tutSnapshot; tutSnapshot = null;
+  if (s) {
+    S.date = s.date; S.found = s.found; S.foundBlocks = s.foundBlocks;
+    S.removed = s.removed; S.seconds = s.seconds; S.won = s.won;
+    S.themeTied = s.themeTied; S.hints = s.hints; S.selection = [];
+    S.checking = false;
+    $("#timer").textContent = mmss(S.seconds);
+    clearGridNodes();
+    initGrid();
+    renderGrid(); renderWordPreview(); updateHud(); updateHintBtn(); updateReplayBtn();
+    if (S.themeTied) GT.restoreEnding();   // bring back the tied knot if the real game had it
+    go("play");
+    if (s.running && !S.won) startClock();
+  } else {
+    go("levels");
+  }
+}
+
+$("#tutSkip").onclick = endTutorial;
+$("#tut-pill").onclick = () => {
+  if (S.tutorial && TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].done) endTutorial();
+};
 
 /* dates */
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
