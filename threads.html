@@ -219,14 +219,21 @@ svg{display:block}
 .iconbtn--bare{background:none;border:0;width:34px;height:34px}
 
 /* ── grid ─────────────────────────────────────────────────────────────── */
+/* Responsive board sizing - tiles + gaps scale with viewport height so the
+   whole board (and the tutorial chrome above it) always fits on short screens
+   without scrolling. Clamps back to the original sizes on tall screens. */
+:root{--tile-h:clamp(2.3rem,7.4vh,3.5rem);--board-gap:clamp(5px,1.3vh,10px)}
+/* nothing sits below the board on the play screen, so it doesn't need the
+   large default bottom padding - reclaim that space for the board */
+#s-play .content{gap:.875rem;padding-top:1rem;padding-bottom:2.5rem}
 .grid-wrap{position:relative;width:100%}
 .tgrid{display:grid;grid-template-columns:repeat(5,1fr);
-  gap:10px;padding:6px;
+  gap:var(--board-gap);padding:6px;
   /* Phase 3: own the gesture so tap+drag works and the thread can layer
      between unselected and selected tiles (no stacking context here) */
   touch-action:none;user-select:none}
 .block{background:var(--block-bg);display:grid;place-items:center;
-  min-height:3.5rem;font-family:var(--font-body);font-weight:700;
+  min-height:var(--tile-h);font-family:var(--font-body);font-weight:700;
   font-size:clamp(.875rem,4.2vw,1.2rem);color:var(--foreground);
   cursor:pointer;position:relative;
   border-radius:10px;
@@ -250,6 +257,16 @@ svg{display:block}
 .block--dip{transform:translateY(3px) scale(.95)}
 @keyframes tileNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
 .block--nudge{animation:tileNudge .12s ease-out}
+/* tutorial "tap me" hint — a gentle, looping pulse on the single next tile the
+   player should tap (Elephant step only; see the tutTapHint controller). Subtle
+   breathe: a small scale with a soft shadow lift, then a rest between beats. */
+@keyframes tapHint{
+  0%,55%,100%{transform:scale(1);
+    box-shadow:0 4px 0 var(--block-shadow),0 4px 8px oklch(0 0 0/.08)}
+  27%{transform:scale(1.05);
+    box-shadow:0 6px 0 var(--block-shadow),0 7px 14px oklch(0 0 0/.14)}
+}
+.block--taphint{animation:tapHint 1.5s ease-in-out infinite;z-index:2}
 /* ── Phase 6: hint badge (lightbulb in the tile's top-right corner) ─────── */
 .block{overflow:visible}
 .block__hint{position:absolute;top:3px;right:3px;width:13px;height:13px;
@@ -330,7 +347,7 @@ svg{display:block}
    (the under-strand shows there) and runs across each tile face, so the stitch
    reads as poking up and back down through every tile. */
 .gt-seam{grid-column:1 / -1;display:flex;align-items:stretch;justify-content:center;
-  gap:5px;min-height:3.5rem;position:relative;z-index:1;pointer-events:none;cursor:default;
+  gap:5px;min-height:var(--tile-h);position:relative;z-index:1;pointer-events:none;cursor:default;
   padding-inline:18px}
 .gt-seam-tile{flex:1 1 0;display:grid;place-items:center;position:relative;
   font-family:var(--font-body);font-weight:700;letter-spacing:.02em;
@@ -399,6 +416,21 @@ svg{display:block}
   box-shadow:0 1px 2px oklch(0 0 0/.08)}
 .tut-pill--action{cursor:pointer;transition:transform .1s}
 .tut-pill--action:active{transform:scale(.97)}
+
+/* Short-viewport tightening so the tutorial chrome + board fit together. */
+@media (max-height:720px){
+  #s-play .content{gap:.6rem;padding-top:.5rem;padding-bottom:1.5rem}
+  .tut-title{font-size:1.4rem;margin:.5rem 0 .3rem}
+  .tut-copy{line-height:1.3;margin-bottom:.45rem}
+  .tut-pill{padding:.55rem 1.3rem;margin-bottom:.35rem}
+  .word-preview{min-height:2rem;padding:.375rem}
+}
+@media (max-height:600px){
+  #s-play .content{gap:.45rem;padding-top:.35rem}
+  .tut-title{font-size:1.25rem;margin:.35rem 0 .25rem}
+  .tut-copy{font-size:1rem;margin-bottom:.35rem}
+  .tut-pill{padding:.5rem 1.2rem;font-size:1rem}
+}
 
 /* ── levels select ────────────────────────────────────────────────────── */
 .levels-content{gap:1rem;padding-block:2rem;max-width:30rem}
@@ -487,6 +519,7 @@ svg{display:block}
   .block--pressed{transition:none}
   .block--dip{transform:translateY(3px)}
   .block--nudge{animation:none}
+  .block--taphint{animation:none}
   .block__hint--pop{animation:none}
   #hintBtn.iconbtn--shake{animation:none}
   .wp-chip::after{transition:none}
@@ -547,7 +580,7 @@ svg{display:block}
         </div>
       </nav>
     </div>
-    <div class="content" style="gap:.875rem;padding-top:1rem">
+    <div class="content">
       <div class="tut-head" id="tut-head">
         <button class="tut-skip" id="tutSkip" type="button">Skip</button>
         <h2 class="tut-title">How to Play Threads</h2>
@@ -1378,6 +1411,8 @@ function afterSelectionChange() {
   renderGrid();
   renderWordPreview();
   drawThread();   // GT syncs the live sewn stitch to the new selection
+  // tutorial tap hint: after a tap, wait 3s then pulse the next tile along
+  if (S.tutorial && S.tutorial.step === 1) armTutTapHint();
 }
 function maybeAutoCheck() {
   if (S.selection.length !== 5) return false;
@@ -1395,6 +1430,7 @@ let drag = null;
 grid.addEventListener("pointerdown", e => {
   if (!e.isPrimary) return;
   GT.skip();                 // tap the board to fast-forward an in-progress ending
+  if (S.tutorial) stopTutTapHint();           // stop the pulse the moment they tap
   if (S.won || S.checking) return;
   const blockEl = e.target.closest(".block");
   if (!blockEl || !blockEl.dataset.id) return;
@@ -2534,6 +2570,43 @@ const TUT_STEPS = {
 };
 let tutSnapshot = null;
 
+/* "Tap me" affordance for the tutorial's first (Elephant) step only. One tile
+   gently pulses: the next ELEPHANT tile the player should tap (EL first). It
+   loops until they tap, then — after a 3s pause — the next tile along pulses,
+   walking them through the whole word. */
+let tutTapTimer = null, tutTapGen = 0;
+const TUT_TAP_IDLE = 3000;
+// the single next tile to pulse: the ELEPHANT tile for the next empty column,
+// but only while the current selection still matches ELEPHANT so far
+function tutTapTargetNode() {
+  if (!S.tutorial || S.tutorial.step !== 1 || S.checking || S.won) return null;
+  const blocks = decomposeWord("ELEPHANT");
+  if (!blocks) return null;
+  for (let i = 0; i < S.selection.length; i++) {
+    if (!S.selection[i] || S.selection[i].block.id !== blocks[i].id) return null;
+  }
+  const col = S.selection.length;
+  if (col >= 5) return null;
+  return nodeMap.get(blocks[col].id) || null;
+}
+function stopTutTapHint() {
+  tutTapGen++;                                   // invalidate any pending callbacks
+  if (tutTapTimer) { clearTimeout(tutTapTimer); tutTapTimer = null; }
+  nodeMap.forEach(n => n.classList.remove("block--taphint"));
+}
+function armTutTapHint() {
+  stopTutTapHint();                              // clear any current pulse + reset the idle wait
+  if (prefersReducedMotion()) return;
+  if (!S.tutorial || S.tutorial.step !== 1) return;
+  const gen = tutTapGen;
+  tutTapTimer = setTimeout(() => {
+    if (gen !== tutTapGen) return;
+    tutTapTimer = null;
+    const node = tutTapTargetNode();
+    if (node) node.classList.add("block--taphint");   // loops via CSS until cleared
+  }, TUT_TAP_IDLE);
+}
+
 function setTutorialStep(n) {
   if (!S.tutorial) return;
   S.tutorial.step = n;
@@ -2543,6 +2616,7 @@ function setTutorialStep(n) {
   pill.textContent = s.pill;
   pill.classList.toggle("tut-pill--action", !!s.done);
   pill.disabled = !s.done;
+  if (n === 1) armTutTapHint(); else stopTutTapHint();   // tap hint: Elephant step only
 }
 
 // advance the script after a valid word lands (gating guarantees which word)
@@ -2605,6 +2679,7 @@ async function endTutorial(opts) {
   if (tutEnding) return;            // guard: auto-advance + manual tap can't both fire
   tutEnding = true;
   const loading = opts === true || !!(opts && opts.loading);
+  stopTutTapHint();
   S.tutorial = null;
   localStorage.setItem(SEEN_HOW, "1");
   $("#s-play").classList.remove("tut");
