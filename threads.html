@@ -421,6 +421,21 @@ svg{display:block}
   backdrop-filter:blur(6px)}
 .pause.on{display:grid}
 
+/* ── loading veil (shown briefly when leaving the tutorial for the game) ─── */
+.loader{position:fixed;inset:0;z-index:95;display:none;place-items:center;
+  background:var(--background);opacity:0;transition:opacity .25s ease}
+.loader.on{display:grid;opacity:1}
+.loader__inner{display:grid;gap:1.1rem;justify-items:center}
+.loader__spin{width:2.75rem;height:2.75rem;border-radius:50%;
+  border:3px solid color-mix(in srgb,var(--_detail) 20%,transparent);
+  border-top-color:var(--_detail);animation:loaderSpin .8s linear infinite}
+.loader__text{font-weight:700;font-size:.9375rem;color:var(--muted-foreground)}
+@keyframes loaderSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  .loader{transition:none}
+  .loader__spin{animation-duration:1.4s}
+}
+
 /* ── settings sheet ───────────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;z-index:70;background:oklch(0 0 0/.4);opacity:0;
   pointer-events:none;transition:opacity .2s}
@@ -577,6 +592,14 @@ svg{display:block}
       <h2 class="h1">Paused</h2>
       <p class="muted">Your threads are waiting.</p>
       <button class="btn btn--primary" id="resumeBtn" style="min-width:12rem">Resume</button>
+    </div>
+  </div>
+
+  <!-- ══ LOADING VEIL ═══════════════════ -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__inner">
+      <div class="loader__spin"></div>
+      <p class="loader__text">Weaving your puzzle…</p>
     </div>
   </div>
 
@@ -2449,10 +2472,8 @@ function startTutorial() {
   go("play");
 }
 
-function endTutorial() {
-  S.tutorial = null;
-  localStorage.setItem(SEEN_HOW, "1");
-  $("#s-play").classList.remove("tut");
+// restore the real round that was snapshotted on entry, then show its screen
+function restoreAfterTutorial() {
   const s = tutSnapshot; tutSnapshot = null;
   if (s) {
     S.date = s.date; S.found = s.found; S.foundBlocks = s.foundBlocks;
@@ -2471,9 +2492,29 @@ function endTutorial() {
   }
 }
 
-$("#tutSkip").onclick = endTutorial;
+// brief, un-skippable hold so the loading veil is always felt (even in RM)
+const hold = ms => new Promise(res => setTimeout(res, ms));
+
+async function endTutorial(opts) {
+  const loading = opts === true || !!(opts && opts.loading);
+  S.tutorial = null;
+  localStorage.setItem(SEEN_HOW, "1");
+  $("#s-play").classList.remove("tut");
+  if (loading) {
+    const veil = $("#loader");
+    veil.classList.add("on");                 // fade the veil in over the tutorial
+    await hold(900);                          // hold while "loading"
+    restoreAfterTutorial();                   // swap to the game underneath the veil
+    await hold(150);
+    veil.classList.remove("on");              // fade out to reveal the real game
+  } else {
+    restoreAfterTutorial();                   // Skip jumps straight in, no veil
+  }
+}
+
+$("#tutSkip").onclick = () => endTutorial();
 $("#tut-pill").onclick = () => {
-  if (S.tutorial && TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].done) endTutorial();
+  if (S.tutorial && TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].done) endTutorial({ loading: true });
 };
 
 /* dates */
