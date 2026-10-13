@@ -23,7 +23,7 @@
  * - Re-deploy (Manage deployments → edit → new version) after editing this file.
  */
 
-var SHEET_NAME = 'events';
+var SHEET_NAME = 'Threads Events';
 
 // Columns promoted to their own cells; all other keys are folded into `props`.
 var COLUMNS = [
