@@ -2433,8 +2433,8 @@ const TUT_STEPS = {
        pill: "Try guessing Animal", target: "ANIMAL" },
   3: { copy: "Well done! Animal is the <strong>Golden Thread</strong>. Now find the 3 remaining animals.",
        pill: "Finish the puzzle", target: null },
-  4: { copy: "Well done! You found all five phrases.",
-       pill: "That\u2019s the game.", target: null, done: true }
+  4: { copy: "Well done! You found all five phrases. Here\u2019s your puzzle\u2026",
+       pill: "Play the puzzle", target: null, done: true }
 };
 let tutSnapshot = null;
 
@@ -2452,7 +2452,12 @@ function setTutorialStep(n) {
 // advance the script after a valid word lands (gating guarantees which word)
 function tutorialOnWordFound(word) {
   const p = puzzle();
-  if (S.found.length === p.words.length) { S.won = true; setTutorialStep(4); return; }
+  if (S.found.length === p.words.length) {
+    S.won = true; setTutorialStep(4);
+    // let the win land, then move the player into the real puzzle automatically
+    setTimeout(() => { if (S.tutorial) endTutorial({ loading: true }); }, prefersReducedMotion() ? 500 : 1500);
+    return;
+  }
   if (S.tutorial.step === 1) setTutorialStep(2);        // ELEPHANT found
   else if (S.tutorial.step === 2) setTutorialStep(3);   // ANIMAL (theme) found
   // step 3: remaining members land until completion flips to step 4
@@ -2495,7 +2500,10 @@ function restoreAfterTutorial() {
 // brief, un-skippable hold so the loading veil is always felt (even in RM)
 const hold = ms => new Promise(res => setTimeout(res, ms));
 
+let tutEnding = false;
 async function endTutorial(opts) {
+  if (tutEnding) return;            // guard: auto-advance + manual tap can't both fire
+  tutEnding = true;
   const loading = opts === true || !!(opts && opts.loading);
   S.tutorial = null;
   localStorage.setItem(SEEN_HOW, "1");
@@ -2510,6 +2518,7 @@ async function endTutorial(opts) {
   } else {
     restoreAfterTutorial();                   // Skip jumps straight in, no veil
   }
+  tutEnding = false;
 }
 
 $("#tutSkip").onclick = () => endTutorial();
