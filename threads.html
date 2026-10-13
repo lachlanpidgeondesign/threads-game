@@ -832,6 +832,73 @@ function saveProgress() {
   } catch (e) {}
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ANALYTICS — anonymous event tracking to a Google Sheets Web App.
+   Paste your Apps Script /exec URL into TRACK_URL to enable; while it is an
+   empty string, every track() call is a silent no-op (zero network). All
+   sending is best-effort and wrapped so it can never block or break play.
+   ══════════════════════════════════════════════════════════════ */
+const TRACK_URL = "";                 // <- paste the Apps Script Web App /exec URL here
+const TRACK_BUILD = "threads-web";    // tag to tell builds apart in the sheet
+const ANON_KEY = "threads-anon-id";
+function newId(prefix) {
+  try { if (crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+  return prefix + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+}
+function anonId() {
+  let id = null;
+  try { id = localStorage.getItem(ANON_KEY); } catch (e) {}
+  if (!id) { id = newId("a-"); try { localStorage.setItem(ANON_KEY, id); } catch (e) {} }
+  return id;
+}
+const SESSION_ID = newId("s-");       // fresh per page load
+const ANON_ID = anonId();             // persistent across visits
+let currentScreen = null;             // for detecting when a level is left
+let levelInProgress = false;          // an unwon real level is being played
+let tutStartTs = 0;                   // Date.now() when the tutorial began
+function track(event, props) {
+  if (!TRACK_URL) return;             // disabled until an endpoint is set
+  try {
+    const payload = Object.assign({
+      event,
+      ts: new Date().toISOString(),
+      anonId: ANON_ID,
+      sessionId: SESSION_ID,
+      build: TRACK_BUILD,
+      level: S.date || null,
+      scheme: S.settings && S.settings.scheme,
+      dark: !!(S.settings && S.settings.dark),
+      reducedMotion: prefersReducedMotion(),
+      ua: navigator.userAgent,
+      vw: window.innerWidth,
+      vh: window.innerHeight
+    }, props || {});
+    const body = JSON.stringify(payload);
+    // text/plain avoids a CORS preflight Apps Script can't answer
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(TRACK_URL, new Blob([body], { type: "text/plain;charset=UTF-8" }));
+    } else {
+      fetch(TRACK_URL, { method: "POST", body, keepalive: true, mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" } }).catch(() => {});
+    }
+  } catch (e) { /* never block gameplay */ }
+}
+// fire level_start for a fresh entry into a real, unwon level
+function trackLevelStart(source) {
+  if (S.tutorial || S.won) return;
+  levelInProgress = true;
+  track("level_start", { source: source || "play", levelLabel: levelLabel(S.date),
+    returning: S.started.has(S.date) });
+}
+// the tab is closing / backgrounding mid-level → count it as abandoned
+window.addEventListener("pagehide", () => {
+  if (levelInProgress) {
+    track("level_abandoned", { secondsIn: S.seconds, foundSoFar: S.found.length,
+      wordOrder: S.found.slice(), reason: "pagehide" });
+    levelInProgress = false;
+  }
+});
+
 /* ════════════════════════════════════════════════════════════════════════
    SETTINGS (Phase 0.6) — persisted under "threads-settings"
    ════════════════════════════════════════════════════════════════════════ */
@@ -1476,6 +1543,10 @@ function doHint() {
   if (S.checking || S.won) return;
   const p = puzzle();
   const unfound = p.words.filter(w => !S.found.includes(w));
+  if (!S.tutorial) {
+    S.hintClicks = (S.hintClicks || 0) + 1;
+    track("hint_used", { hintNumber: S.hintClicks, secondsIn: S.seconds, unfound: unfound.length });
+  }
   // 1) extend the active hint — the most recent unfound word that still has
   //    tiles left to reveal — so repeat clicks grow the SAME word (2-3, 3-4…)
   const active = [...S.hints].reverse().find(h =>
@@ -1548,6 +1619,10 @@ async function checkAndHandleWord() {
   if (ok) {
     await handleValidWord(word);
   } else {
+    if (!S.tutorial) {
+      S.wrongGuesses = (S.wrongGuesses || 0) + 1;
+      track("wrong_guess", { attempt: word, secondsIn: S.seconds, selectionLen: S.selection.length });
+    }
     await handleInvalidWord();
   }
 }
@@ -2282,6 +2357,17 @@ function finish() {
   stopClock();
   S.solved.add(S.date);
   saveProgress();
+  const pz = puzzle();
+  track("level_complete", {
+    durationSec: S.seconds,
+    hintsUsed: S.hintClicks || 0,
+    wrongGuesses: S.wrongGuesses || 0,
+    wordOrder: S.found.slice(),
+    themeWord: pz.categoryWord,
+    themePos: S.found.indexOf(pz.categoryWord),
+    levelLabel: levelLabel(S.date)
+  });
+  levelInProgress = false;
   const total = S.seconds;
   const ratio = total / PAR_SECONDS;
   $("#done-time").textContent = mmss(total);
@@ -2309,6 +2395,12 @@ if (shareBtn) shareBtn.onclick = async () => {
 const MARK = size => '<img src="Thread.svg" width="' + size + '" height="' + size + '" alt="Threads" style="display:block;image-rendering:pixelated">';
 
 function go(name) {
+  const prevScreen = currentScreen;
+  if (prevScreen === "play" && name !== "play" && levelInProgress) {
+    track("level_abandoned", { secondsIn: S.seconds, foundSoFar: S.found.length,
+      wordOrder: S.found.slice(), reason: "nav" });
+    levelInProgress = false;
+  }
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
   $("#s-" + name).classList.add("on");
   document.body.style.background =
@@ -2327,6 +2419,7 @@ function go(name) {
     updateHud();
     requestAnimationFrame(() => drawThread());
   }
+  currentScreen = name;
   window.scrollTo(0, 0);
 }
 document.querySelectorAll("[data-go]").forEach(b =>
@@ -2353,8 +2446,10 @@ function selectLevel(date) {
 function nextGame() {
   const idx = HOME.dates.indexOf(S.date);
   const next = HOME.dates[(idx + 1) % HOME.dates.length];
+  track("next_game", { fromLevel: S.date, toLevel: next });
   S.date = next;
   resetRound();
+  trackLevelStart("next");
   go("play");
 }
 
@@ -2382,19 +2477,19 @@ $("#backResultsBtn").onclick = () => go("done");
 
 const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
 const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
-$("#helpBtn").onclick = openSheet;
+$("#helpBtn").onclick = () => { track("help_open", { secondsIn: S.seconds, won: S.won }); openSheet(); };
 $("#scrim").onclick = closeSheet;
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("#sheet").classList.contains("on")) closeSheet();
 });
-$("#replayTutBtn").onclick = () => { closeSheet(); startTutorial(); };
+$("#replayTutBtn").onclick = () => { closeSheet(); startTutorial("replay"); };
 
 /* how to play — the interactive tutorial; auto-shown on first visit, plus the
    in-game help modal (Replay tutorial) */
 const SEEN_HOW = "threads-how-seen";
 $("#startPlayBtn").onclick = () => {
   if (!localStorage.getItem(SEEN_HOW)) startTutorial();
-  else go("play");
+  else { trackLevelStart("start"); go("play"); }
 };
 
 /* ── settings (Phase 0.6) — persisted via saveSettings(); applied at boot ─ */
@@ -2410,6 +2505,7 @@ function updateReplayBtn() {
 function resetRound() {
   S.selection = []; S.found = []; S.foundBlocks = []; S.removed.clear();
   S.seconds = 0; S.won = false; S.checking = false; S.themeTied = false;
+  S.hintClicks = 0; S.wrongGuesses = 0;   // per-level analytics counters
   reviewingResult = false;   // a fresh board is never a result review
   stopClock(); $("#timer").textContent = "00:00";
   clearGridNodes();
@@ -2454,6 +2550,7 @@ function tutorialOnWordFound(word) {
   const p = puzzle();
   if (S.found.length === p.words.length) {
     S.won = true; setTutorialStep(4);
+    track("tutorial_complete", { elapsedMs: Date.now() - tutStartTs });
     // let the win land, then move the player into the real puzzle automatically
     setTimeout(() => { if (S.tutorial) endTutorial({ loading: true }); }, prefersReducedMotion() ? 500 : 1500);
     return;
@@ -2463,7 +2560,8 @@ function tutorialOnWordFound(word) {
   // step 3: remaining members land until completion flips to step 4
 }
 
-function startTutorial() {
+function startTutorial(source) {
+  tutStartTs = Date.now();
   // snapshot the real round so reopening the tutorial mid-game loses nothing
   tutSnapshot = {
     date: S.date, found: S.found.slice(), foundBlocks: S.foundBlocks.slice(),
@@ -2475,6 +2573,7 @@ function startTutorial() {
   $("#s-play").classList.add("tut");
   setTutorialStep(1);
   go("play");
+  track("tutorial_start", { source: source || "first" });
 }
 
 // restore the real round that was snapshotted on entry, then show its screen
@@ -2492,6 +2591,7 @@ function restoreAfterTutorial() {
     if (S.themeTied) GT.restoreEnding();   // bring back the tied knot if the real game had it
     go("play");
     if (s.running && !S.won) startClock();
+    if (!S.won) trackLevelStart("tutorial");
   } else {
     go("levels");
   }
@@ -2521,7 +2621,10 @@ async function endTutorial(opts) {
   tutEnding = false;
 }
 
-$("#tutSkip").onclick = () => endTutorial();
+$("#tutSkip").onclick = () => {
+  if (S.tutorial) track("tutorial_skip", { step: S.tutorial.step, elapsedMs: Date.now() - tutStartTs });
+  endTutorial();
+};
 $("#tut-pill").onclick = () => {
   if (S.tutorial && TUT_STEPS[S.tutorial.step] && TUT_STEPS[S.tutorial.step].done) endTutorial({ loading: true });
 };
@@ -2579,6 +2682,8 @@ loadSettings();
 applySettings();
 GT.init();
 loadProgress();
+track("session_open", { returning: S.started.size > 0 || S.solved.size > 0,
+  seenTutorial: !!localStorage.getItem(SEEN_HOW) });
 initGrid();
 go("levels");
 </script>
