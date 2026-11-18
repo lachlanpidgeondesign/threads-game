@@ -102,9 +102,9 @@ const LEVELS = [
   { name: "flag", tier: "medium", par: 4,
     start: ["......", "......", "YR....", ".....B", "......", "......"],
     rows: ["BBBBBB", "YROORY", "YROORY", "BBBBBB", "......", "......"] },
-  { name: "frame", tier: "hard", par: 5,
-    start: [".....R", "......", "......", "......", "......", "BY...."],
-    rows: ["PORROP", "BY..YB", "......", "......", "BY..YB", "PORROP"] },
+  { name: "window", tier: "hard", par: 5,
+    start: ["......", "...Y..", "......", "BR....", "......", "......"],
+    rows: ["......", "GOYYOG", "BR..RB", "BR..RB", "GOYYOG", "......"] },
   { name: "gate", tier: "hard", par: 5,
     start: ["......", "...Y..", "....R.", "......", "......", ".....B"],
     rows: ["B....B", "GYYYYG", ".R..R.", ".R..R.", "GYYYYG", "B....B"] }
@@ -122,6 +122,16 @@ test("from Easy up, finishing over par is possible, so the score means something
   for (const L of LEVELS.filter(l => ["easy", "medium", "hard"].includes(l.tier))) {
     const lv = E.makeLevel(L.rows, L.start), a = E.analyse(lv.start, lv.target);
     assert.ok(a.routes.slice(1).some(n => n > 0), L.name + " has no over-par finish");
+  }
+});
+
+test("from Easy up, there's more than one way in and par isn't the only easy finish", () => {
+  for (const L of LEVELS.filter(l => ["easy", "medium", "hard"].includes(l.tier))) {
+    const lv = E.makeLevel(L.rows, L.start), a = E.analyse(lv.start, lv.target, { extra: 2 });
+    assert.ok(a.routes[1] + (a.routes[2] || 0) >= a.routes[0], L.name + " routes " + a.routes.join("/"));
+    const ways = E.creases(lv.w, lv.h).map(c => E.press(lv.start, c)).filter(s =>
+      s.cells !== lv.start.cells && !E.isDead(s, lv.target) && E.solve(s, lv.target, { maxDepth: L.par + 1 }));
+    assert.ok(ways.length >= 2, L.name + " has " + ways.length + " good first presses");
   }
 });
 
