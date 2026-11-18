@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Untitled Fold Game</title>
+
+<style>
+/* Tokens + components below are copied verbatim from threads.html (Threads is a
+   single self-contained file, so there is no shared stylesheet to link without
+   editing it). Only the "fold" sections at the end are new. */
+@font-face{font-family:"Inter";src:url("https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2") format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Literata";src:url("https://fonts.gstatic.com/s/literata/v40/or3hQ6P12-iJxAIgLYTwJrUXnTPm.woff2") format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+
+/* ── tenant theme ─────────────────────────────────────────────────────── */
+:root{
+  --background:oklch(1 0 0); --foreground:oklch(0 0 0);
+  --card:oklch(0.9158 0 89.9); --popover:oklch(0.98 0 0);
+  --primary:oklch(0.448 0.1751 259.2); --secondary:oklch(0.3211 0 89.9);
+  --muted:oklch(0.97 0 0); --muted-foreground:oklch(0.32 0 0);
+  --accent:oklch(0.448 0.1751 259.2);
+  --border:oklch(0.85 0 0); --ring:oklch(0.448 0.1751 259.2);
+  --radius:0.625rem;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-heading:"Literata",system-ui,sans-serif;
+}
+/* ── game triad (same values as Threads) ──────────────────────────────── */
+:root{
+  --game-threads-surface:oklch(0.871 0.0965 77.7);
+  --game-threads-detail:oklch(0.412 0.0714 76);
+  --game-threads-accent:oklch(0.7939 0.1467 74.2);
+  --game-threads-on-detail:oklch(1 0 0);
+  --game-threads-on-accent:oklch(0 0 0);
+}
+:where(:root){
+  --_surface:var(--game-threads-surface); --_detail:var(--game-threads-detail);
+  --_accent:var(--game-threads-accent);   --_on-detail:var(--game-threads-on-detail);
+  --_on-accent:var(--game-threads-on-accent);
+  --nav-band:var(--or-50);
+  --root-tint:oklch(0.985 0 0);
+  --c-ink:oklch(0.19 0 0);
+}
+/* ── brand palette ────────────────────────────────────────────────────── */
+:root{
+  --um-900:#12102E;--um-800:#24205C;--um-700:#352F8A;--um-600:#473FB8;--um-500:#594FE6;
+  --um-400:#7A72EB;--um-300:#9B95F0;--um-200:#BDB9F5;--um-100:#DEDCFA;--um-50:#EEEDFC;
+  --or-900:#31220C;--or-800:#614518;--or-700:#926725;--or-600:#C28A31;--or-500:#F3AC3D;
+  --or-400:#F5BD64;--or-300:#F8CD8B;--or-200:#FADEB1;--or-100:#FDEED8;--or-50:#FEF7EC;
+  --gr-900:#00291F;--gr-800:#00523F;--gr-700:#007A5E;--gr-600:#00A37E;--gr-500:#00CC9D;
+  --gr-400:#33D6B1;--gr-300:#66E0C4;--gr-200:#99EBD8;--gr-100:#CCF5EB;--gr-50:#E5FAF5;
+  --bl-900:#0B2427;--bl-800:#16484E;--bl-700:#216B76;--bl-600:#2C8F9D;--bl-500:#37B3C4;
+  --bl-400:#5FC2D0;--bl-300:#87D1DC;--bl-200:#AFE1E7;--bl-100:#D7F0F3;--bl-50:#EBF7F9;
+  --pk-900:#2A0A19;--pk-800:#541332;--pk-700:#7F1D4B;--pk-600:#A92664;--pk-500:#D3307D;
+  --pk-400:#DC5997;--pk-300:#E583B1;--pk-200:#EDACCB;--pk-100:#F6D6E5;--pk-50:#FBEAF2;
+  --ink-900:#242424;
+  /* Golden Thread tile tokens */
+  --th-paper:#FFFFFF; --th-tile:#FFFFFF; --th-tile-edge:#E4DCCB;
+  --th-done:var(--or-50); --th-letter:#2A2620; --th-gold:#F4A81D;
+}
+
+/* ── base ─────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overscroll-behavior:none}
+body{font-family:var(--font-body);font-weight:500;background:var(--root-tint);
+  color:var(--foreground);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+[hidden]{display:none!important}
+#app{min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  text-align:center;position:relative;overflow-x:hidden}
+.screen{display:none;width:100%;flex:1;flex-direction:column;align-items:center}
+.screen.on{display:flex}
+.content{width:100%;max-width:25rem;margin-inline:auto;padding:1rem 1rem 5rem;
+  display:flex;flex-direction:column;align-items:center;gap:.75rem}
+
+/* ── type ─────────────────────────────────────────────────────────────── */
+.display{font-family:var(--font-heading);font-weight:900;font-size:2.25rem;line-height:1.1;color:var(--_detail)}
+.h1{font-family:var(--font-heading);font-weight:700;font-size:1.875rem;line-height:1.2}
+.h2{font-size:1.125rem;font-weight:700}
+.small{font-size:.875rem}
+.muted{color:var(--muted-foreground)}
+.eyebrow{font-family:var(--font-heading);font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+.figure{font-family:var(--font-heading);font-weight:700;font-size:2.25rem;font-variant-numeric:tabular-nums;line-height:1}
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  font-size:1rem;font-weight:700;padding:.875rem 1.5rem;border-radius:999px;
+  border:1px solid transparent;transition:all .2s}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--background),0 0 0 4px var(--ring)}
+.btn--start{background:var(--c-ink);color:#fff}
+.btn--primary{background:var(--_detail);color:var(--_on-detail)}
+.btn--outline{background:var(--background);color:var(--foreground);border-color:var(--border)}
+.btn--block{width:100%}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btnrow{display:flex;gap:.75rem;width:100%}
+.textbtn{font-weight:500;color:var(--muted-foreground);display:inline-flex;align-items:center;gap:.375rem;padding:.5rem;min-height:44px}
+
+/* ── nav ──────────────────────────────────────────────────────────────── */
+.navband{position:relative;isolation:isolate;width:100%}
+.navband::before{content:"";position:absolute;inset:0;left:-100vw;right:-100vw;
+  z-index:-1;background:var(--nav-band);border-bottom:1px solid var(--_surface)}
+.nav{position:relative;z-index:40;display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:center;width:100%;max-width:32rem;margin-inline:auto;padding:4px .5rem}
+.nav__l{display:flex;align-items:center;gap:.25rem;min-width:0}
+.nav__m{display:flex;justify-content:center}
+.nav__r{display:flex;justify-self:end;gap:.375rem}
+.timer{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:25px;background:var(--muted);
+  border:1px solid var(--_surface);transition:all .2s}
+.iconbtn:active{transform:scale(.95)}
+.iconbtn--bare{background:none;border:0}
+@keyframes hintShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}
+  40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+#hintBtn.iconbtn--shake{animation:hintShake .4s ease}
+#hintBtn:disabled{opacity:.4;pointer-events:none}
+
+/* ── cards / levels ───────────────────────────────────────────────────── */
+.card{background:var(--background);border-radius:1rem;padding:1.5rem 1.25rem;
+  width:100%;box-shadow:0 1px 2px oklch(0 0 0/.06),0 1px 3px oklch(0 0 0/.04)}
+.howtop{display:flex;justify-content:flex-end;width:100%;max-width:25rem;padding:.5rem}
+.levels-content{gap:1rem;padding-block:2rem;max-width:30rem}
+.levels-head{display:flex;flex-direction:column;align-items:center;gap:.25rem;width:100%}
+.levels-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;width:100%}
+.lvl-group{grid-column:1/-1;font-family:var(--font-heading);font-weight:700;font-size:1rem;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--_detail);margin-top:.5rem}
+.lvl{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;
+  padding:1.1rem 1.25rem;border-radius:var(--radius);text-align:left;
+  background:var(--background);border:1px solid var(--border);
+  box-shadow:0 1px 2px oklch(0 0 0/.05);transition:transform .1s,box-shadow .15s}
+.lvl:active{transform:scale(.98)}
+.lvl__cat{font-family:var(--font-heading);font-weight:700;font-size:1.25rem;line-height:1.2;color:var(--foreground)}
+.lvl__status{font-weight:700;font-size:1rem;color:var(--_detail)}
+.lvl--done{border-color:color-mix(in oklch,var(--_detail) 45%,var(--border))}
+
+/* ── tutorial chrome ──────────────────────────────────────────────────── */
+.tut-head{display:none;flex-direction:column;align-items:center;width:100%;
+  max-width:25rem;margin-inline:auto;text-align:center;position:relative}
+#s-play.tut .tut-head{display:flex}
+#s-play.tut .navband,#s-play.tut #hudText,#s-play.tut .ftools{display:none}
+.tut-skip{position:absolute;top:-.25rem;right:.25rem;background:none;border:none;
+  font-family:var(--font-body);font-size:1rem;color:var(--muted-foreground);
+  padding:.25rem .5rem;min-height:44px;cursor:pointer}
+.tut-title{font-family:var(--font-heading);font-weight:700;font-size:1.6rem;line-height:1.15;margin:1.5rem 0 .5rem}
+.tut-copy{font-size:1.0625rem;line-height:1.4;max-width:21rem;margin:0 auto .875rem;min-height:calc(1.4em * 2)}
+.tut-pill{display:inline-block;border:none;border-radius:999px;padding:.7rem 1.4rem;
+  margin-bottom:.5rem;cursor:default;font-family:var(--font-body);font-weight:700;
+  font-size:1.0625rem;background:var(--_accent);color:var(--_on-accent);box-shadow:0 1px 2px oklch(0 0 0/.08)}
+.tut-pill--action{cursor:pointer;transition:transform .1s}
+.tut-pill--action:active{transform:scale(.97)}
+
+/* ── loading veil ─────────────────────────────────────────────────────── */
+.loader{position:fixed;inset:0;z-index:95;display:none;place-items:center;
+  background:var(--background);opacity:0;transition:opacity .25s ease}
+.loader.on{display:grid;opacity:1}
+.loader__inner{display:grid;gap:1.1rem;justify-items:center}
+.loader__spin{width:2.75rem;height:2.75rem;border-radius:50%;
+  border:3px solid color-mix(in srgb,var(--_detail) 20%,transparent);
+  border-top-color:var(--_detail);animation:loaderSpin .8s linear infinite}
+.loader__text{font-weight:700;font-size:.9375rem;color:var(--muted-foreground)}
+@keyframes loaderSpin{to{transform:rotate(360deg)}}
+
+/* ── debug panel ──────────────────────────────────────────────────────── */
+.dbg{position:fixed;left:10px;bottom:10px;z-index:120;width:min(320px,calc(100vw - 20px));
+  max-height:70dvh;overflow:auto;background:var(--background);color:var(--foreground);
+  border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px oklch(0 0 0/.22);
+  padding:.75rem;font-family:var(--font-body);font-size:.8rem;text-align:left}
+.dbg__hd{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:.85rem;margin-bottom:.25rem}
+.dbg__hd button{font-size:1.25rem;line-height:1;padding:0 .25rem}
+.dbg__sec{margin-top:.6rem}
+.dbg__sec>span{display:block;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin-bottom:.3rem}
+.dbg__row{display:flex;flex-wrap:wrap;gap:.4rem}
+.dbg__row button{flex:1 1 30%;padding:.45rem .5rem;border-radius:9px;border:1px solid var(--border);font-weight:700;font-size:.75rem}
+
+/* ── sheet (modal) ────────────────────────────────────────────────────── */
+.scrim{position:fixed;inset:0;z-index:70;background:oklch(0 0 0/.4);opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:50%;top:50%;z-index:80;background:var(--popover);border-radius:1rem;
+  padding:1.5rem 1.25rem;width:calc(100% - 2rem);max-width:28rem;
+  transform:translate(-50%,-50%) scale(.96);opacity:0;pointer-events:none;
+  transition:transform .22s cubic-bezier(.32,.72,0,1),opacity .22s;box-shadow:0 12px 40px oklch(0 0 0/.24)}
+.sheet.on{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
+
+/* ── toast ────────────────────────────────────────────────────────────── */
+.toast{position:fixed;left:50%;bottom:1.75rem;z-index:90;transform:translate(-50%,1rem);
+  background:var(--c-ink);color:#fff;font-size:.875rem;font-weight:700;
+  padding:.625rem 1.125rem;border-radius:999px;opacity:0;transition:.22s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ── animations ───────────────────────────────────────────────────────── */
+@keyframes celebrate{0%,to{transform:scale(1)}40%{transform:scale(1.08)}}
+.animate-celebrate{animation:.5s cubic-bezier(.34,1.56,.64,1) celebrate}
+@keyframes tapHint{
+  0%,55%,100%{transform:scale(1);box-shadow:0 4px 0 var(--th-tile-edge)}
+  27%{transform:scale(1.05);box-shadow:0 6px 0 var(--th-tile-edge)}
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   NEW — Ink Press: paper sheet, ink, creases, fold + press animation
+   ════════════════════════════════════════════════════════════════════════ */
+:root{--paper:#FFFFFF;--paper-back:#F3EEE4;
+  /* inks: three primaries and what they mix into */
+  --ink-r:#E5484D;--ink-y:#F5C431;--ink-b:#3B7FE0;
+  --ink-o:#F2832B;--ink-p:#8E4FD6;--ink-g:#2EA866;--ink-k:#6B4C36}
+/* stage = board + a 44px gutter (top + left) for the crease notches */
+.fstage{position:relative;width:100%;max-width:22rem;padding:44px 0 0 44px;overflow:hidden}
+.fboard{position:relative;width:100%;aspect-ratio:1;touch-action:none;user-select:none;
+  -webkit-user-select:none;perspective:900px;
+  box-shadow:0 3px 0 var(--th-tile-edge),0 8px 22px oklch(0 0 0/.08)}
+.fboard--shake{animation:hintShake .4s ease}
+.fcells,.fover{position:absolute;inset:0}
+.fover{pointer-events:none}
+/* one square of paper; .fink is the printed ink on it */
+.fcell{position:absolute;width:var(--cell);height:var(--cell);background:var(--paper);
+  box-shadow:inset 0 0 0 .5px var(--th-tile-edge)}
+.fink{position:absolute;inset:3px;border-radius:5px;background-color:var(--ink,transparent);
+  transition:background-color .15s}
+/* target guide: a faint dashed outline where ink still needs to go */
+.fcell--guide::before{content:"";position:absolute;inset:3px;border-radius:5px;
+  border:2px dashed color-mix(in srgb,var(--want) 60%,transparent);
+  background:color-mix(in srgb,var(--want) 10%,transparent)}
+/* inked, but the wrong colour: a dot of the colour it still needs */
+.fcell--wrong::after{content:"";position:absolute;right:7px;bottom:7px;width:26%;height:26%;
+  border-radius:50%;background:var(--want);box-shadow:0 0 0 2px var(--paper)}
+/* smudge: ink where the picture should be blank (needs an undo) */
+.fcell--smudge .fink{background-image:repeating-linear-gradient(45deg,oklch(1 0 0/.6) 0 3px,transparent 3px 8px)}
+/* lifted: the paper is off the desk, so the desk shows through */
+.fcell--lifted{background:color-mix(in srgb,var(--th-tile-edge) 45%,var(--background));box-shadow:none}
+.fcell--lifted .fink,.fcell--lifted::before,.fcell--lifted::after{visibility:hidden}
+.fcell--hint{z-index:2;animation:tapHint 1.5s ease-in-out infinite}
+/* drag preview: the flap of paper that will land, plus the ink it will print */
+.fflap{position:absolute;z-index:3;background:color-mix(in srgb,var(--paper-back) 55%,transparent);
+  outline:2px dashed var(--c-ink);outline-offset:-1px}
+.fghost{position:absolute;z-index:4;width:var(--cell);height:var(--cell);padding:3px}
+.fghost i{display:block;width:100%;height:100%;border-radius:5px;background:var(--ink);opacity:.8}
+.fghost--bad i{background-image:repeating-linear-gradient(45deg,oklch(1 0 0/.7) 0 3px,transparent 3px 8px)}
+.fline{position:absolute;z-index:7;border:0 dashed var(--c-ink)}
+.fline--v{width:0;border-left-width:2px}
+.fline--h{height:0;border-top-width:2px}
+.fline--hint{border-color:var(--th-gold)}
+/* crease notches: 44px tap targets in the gutter, one per grid line */
+.fnotch{position:absolute;width:44px;height:44px;display:grid;place-items:center;z-index:5;
+  pointer-events:auto;touch-action:manipulation}
+.fnotch::before{content:"";width:6px;height:18px;border-radius:999px;background:var(--th-tile-edge);transition:background .15s,transform .15s}
+.fnotch--h::before{width:18px;height:6px}
+.fnotch--on::before{background:var(--c-ink);transform:scale(1.25)}
+.fnotch--hint::before{background:var(--th-gold);animation:tapHint 1.5s ease-in-out infinite}
+/* the flap of paper that follows your finger. One face per square, seen from
+   both sides; once it's over (past upright) the paper turns see-through so you
+   can see its ink lying on the squares it will touch. */
+.flipper{position:absolute;left:0;top:0;width:0;height:0;transform-style:preserve-3d;z-index:6;pointer-events:none}
+.fface{position:absolute;width:var(--cell);height:var(--cell);background:var(--paper);
+  box-shadow:inset 0 0 0 .5px var(--th-tile-edge)}
+.fface i{position:absolute;inset:3px;border-radius:5px;background:var(--ink,transparent)}
+.fface::after{content:"";position:absolute;inset:0;background:oklch(0 0 0/var(--shade,0));pointer-events:none}
+.flipper--over .fface{background:color-mix(in srgb,var(--paper-back) 50%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c-ink) 25%,transparent)}
+.flipper--over .fface i{opacity:.8}
+/* the shadow the lifted flap casts on the paper it's about to land on */
+.fshade{position:absolute;z-index:4;pointer-events:none;opacity:0}
+/* what each touching pair will become: shown once the flap is over */
+.fswatch{position:absolute;z-index:7;width:var(--cell);height:var(--cell);display:grid;place-items:center;
+  pointer-events:none;opacity:0;transform:scale(.5);transition:opacity .12s,transform .2s cubic-bezier(.34,1.56,.64,1)}
+.fboard--over .fswatch{opacity:1;transform:scale(1)}
+.fswatch i{width:46%;height:46%;border-radius:50%;background:var(--ink);
+  box-shadow:0 0 0 3px var(--paper),0 2px 8px oklch(0 0 0/.3)}
+.fswatch--bad i{background-image:repeating-linear-gradient(45deg,oklch(1 0 0/.75) 0 3px,transparent 3px 7px);
+  box-shadow:0 0 0 3px var(--c-ink),0 2px 8px oklch(0 0 0/.3)}
+
+/* target thumbnail + HUD */
+.fhud{display:flex;align-items:center;gap:.75rem;justify-content:center}
+.thumb{display:grid;gap:2px;padding:4px;border-radius:8px;background:var(--background);
+  border:1px solid var(--th-tile-edge);box-shadow:0 3px 0 var(--th-tile-edge)}
+.thumb i{display:block;aspect-ratio:1;border-radius:2px;background:var(--paper);box-shadow:inset 0 0 0 .5px var(--th-tile-edge)}
+.ftools{display:flex;gap:.75rem;width:100%;max-width:22rem}
+.ftools .btn{flex:1;min-height:44px;padding:.625rem 1rem}
+.fpar{font-size:.875rem;font-weight:700;color:var(--muted-foreground);margin-left:.25rem}
+
+/* win screen reveal */
+.reveal{width:100%;max-width:13rem;margin:0 auto}
+.reveal .fboard{touch-action:auto}
+.reveal-cap{font-family:var(--font-heading);font-weight:700;font-size:1.0625rem}
+
+/* colour mixing key (how-to sheet) */
+.mixkey{display:grid;gap:.5rem;padding:.875rem .25rem 0}
+.mixkey p{display:flex;align-items:center;gap:.5rem;font-size:1rem;color:var(--muted-foreground)}
+.mixkey i{width:1.375rem;height:1.375rem;border-radius:5px;background:var(--ink)}
+
+@media(prefers-reduced-motion:reduce){
+  .fink{transition:none}
+  .fswatch{transition:none}
+  .fcell--hint,.fnotch--hint::before,.fboard--shake,#hintBtn.iconbtn--shake{animation:none}
+  .loader{transition:none}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ══ LEVELS ═════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-levels" style="background:var(--_surface)">
+    <div class="content levels-content">
+      <div class="levels-head">
+        <div id="mark-levels"></div>
+        <h1 class="display">Untitled Fold Game</h1>
+        <p class="small" style="font-weight:700" id="levels-progress"></p>
+      </div>
+      <div class="levels-grid" id="levels-grid"></div>
+    </div>
+  </section>
+
+  <!-- ══ START ══════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-start" style="background:var(--_surface);justify-content:center">
+    <div class="content" style="gap:1rem;padding-block:3rem">
+      <button class="textbtn" data-go="levels" style="align-self:flex-start">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        All levels
+      </button>
+      <div id="mark-lg"></div>
+      <h1 class="display">Untitled Fold Game</h1>
+      <p class="eyebrow" id="start-cat" style="color:var(--_detail)"></p>
+      <p style="font-size:1rem">Fold, press and print the picture</p>
+      <button class="btn btn--start btn--block" style="max-width:18rem" id="startPlayBtn">Play</button>
+      <p class="small" style="font-weight:700" id="start-status"></p>
+    </div>
+  </section>
+
+  <!-- ══ PLAY ═══════════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-play" style="background:var(--background)">
+    <div class="navband">
+      <nav class="nav" aria-label="Game navigation">
+        <div class="nav__l">
+          <button class="iconbtn iconbtn--bare" data-go="levels" aria-label="All levels">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="timer" id="foldCount" aria-live="polite">0</span><span class="fpar" id="parLabel"></span>
+        </div>
+        <div class="nav__m" id="mark-sm"></div>
+        <div class="nav__r">
+          <button class="iconbtn" id="hintBtn" aria-label="Hint">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1v.2h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+          </button>
+          <button class="iconbtn" id="helpBtn" aria-label="How to play">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
+          </button>
+        </div>
+      </nav>
+    </div>
+    <div class="content">
+      <div class="tut-head">
+        <button class="tut-skip" id="tutSkip" type="button">Skip</button>
+        <h2 class="tut-title">How to Play</h2>
+        <p class="tut-copy" id="tut-copy"></p>
+        <button class="tut-pill" id="tut-pill" type="button" disabled></button>
+      </div>
+      <div class="fhud" id="hud">
+        <div class="thumb" id="thumb" aria-hidden="true"></div>
+        <p class="small muted" id="hudText" style="text-align:left;max-width:12rem">Print this picture in as few presses as you can</p>
+      </div>
+      <div class="fstage">
+        <div class="fboard" id="fboard" role="application" aria-label="Paper sheet. Pick up a side and fold it over a line to print, or tap a notch then the sheet."></div>
+      </div>
+      <div class="ftools">
+        <button class="btn btn--outline" id="undoBtn">Undo</button>
+        <button class="btn btn--outline" id="resetBtn">Reset</button>
+      </div>
+      <button class="btn btn--outline" id="backResultsBtn" hidden>Back to results</button>
+    </div>
+  </section>
+
+  <!-- ══ COMPLETED ══════════════════════════════════════════════════════ -->
+  <section class="screen" id="s-done" style="background:var(--or-100)">
+    <div class="howtop" style="justify-content:flex-start">
+      <button class="textbtn" id="backPuzzleBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to puzzle
+      </button>
+    </div>
+    <div class="content" style="gap:.75rem">
+      <div id="mark-done"></div>
+      <h2 class="h1" id="done-title" style="margin-bottom:.25rem">Untitled Fold Game</h2>
+      <div class="card" style="display:grid;gap:.75rem">
+        <div class="reveal"><div class="fboard" id="reveal"></div></div>
+        <p class="reveal-cap" id="reveal-cap"></p>
+        <button class="btn btn--outline btn--block" id="replayBtn">Watch it print</button>
+      </div>
+      <div class="card">
+        <p class="small" style="text-transform:uppercase">Your score</p>
+        <p class="figure" id="done-folds" style="margin:.25rem 0 .5rem"></p>
+        <p id="done-band" style="margin-bottom:.25rem"></p>
+        <p class="small muted" id="done-undos" style="margin-bottom:1.25rem"></p>
+        <button class="btn btn--primary btn--block" id="nextGameBtn" style="margin-bottom:.75rem">Next game</button>
+        <button class="btn btn--outline btn--block" id="shareBtn" style="margin-bottom:.75rem">Share</button>
+        <button class="btn btn--outline btn--block" data-go="levels">Back to all games</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ LOADING VEIL ═══════════════════════════════════════════════════ -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__inner">
+      <div class="loader__spin"></div>
+      <p class="loader__text">Mixing the ink…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SHEET ════════════════════════════════════════════════════════════ -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="How to play">
+  <h2 class="h2" style="margin:.25rem .25rem .75rem">How to Play</h2>
+  <p class="small muted" style="padding:0 .25rem;line-height:1.55;font-size:1.125rem">
+    Some squares have wet ink. Fold the paper along a line and press: everything that touches prints onto the other side, both ways, then the paper opens back up.
+  </p>
+  <div class="mixkey" id="mixkey" aria-label="Inks mix like paint"></div>
+  <p class="small muted" style="padding:.875rem .25rem 0;line-height:1.55;font-size:1.125rem">
+    Print the picture in as few presses as you can. Pick up a side and fold it over a line: once it's past upright you'll see what each touching pair becomes, and letting go presses it. Or tap a notch and then the sheet. Ink can't be wiped off, so if it lands where it shouldn't, just Undo.
+  </p>
+  <button class="btn btn--outline btn--block" id="replayTutBtn" style="margin-top:1.25rem">Replay tutorial</button>
+</div>
+
+<input type="checkbox" switch id="haptic-tick" aria-hidden="true" tabindex="-1"
+  style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px">
+<label for="haptic-tick" id="haptic-tick-label" aria-hidden="true"
+  style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px"></label>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- hidden debug panel: backtick key or ?debug -->
+<div id="dbg" class="dbg" hidden role="dialog" aria-label="Debug">
+  <div class="dbg__hd"><span>Ink Press · debug</span><button id="dbgClose" aria-label="Close">×</button></div>
+  <div class="dbg__sec"><span>Board</span>
+    <div class="dbg__row">
+      <button data-dbg="solve">Play solution</button>
+      <button data-dbg="reset">Reset</button>
+    </div>
+  </div>
+  <div class="dbg__sec"><span>Solution</span><pre id="dbgSol" style="white-space:pre-wrap"></pre></div>
+  <div class="dbg__sec"><span>Sheet (left) vs target (right)</span><pre id="dbgGrid" style="white-space:pre-wrap"></pre></div>
+</div>
+
+<script src="ink-engine.js"></script>
+<script>
+"use strict";
+const E = FoldEngine;
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONTENT: a level is the sheet at the start plus the target picture.
+   Par is the shortest solution, found by the engine's solver, so it can't
+   be beaten. Levels were picked so that the obvious route misses par and
+   finishing over par is possible (see ink-engine.test.js).
+   ════════════════════════════════════════════════════════════════════════ */
+const COLOURS = { R: "var(--ink-r)", Y: "var(--ink-y)", B: "var(--ink-b)",
+  O: "var(--ink-o)", P: "var(--ink-p)", G: "var(--ink-g)", K: "var(--ink-k)" };
+const EMOJI = { R: "🟥", Y: "🟨", B: "🟦", O: "🟧", P: "🟪", G: "🟩", K: "🟫", ".": "⬜" };
+const LEVELS = [
+  // Warm-up: one idea at a time. A random careful player hits par half the time or more
+  { id: "ring", group: "Warm-up", name: "a ring",
+    start: [".R..", "R...", "R...", ".R.."], rows: [".RR.", "R..R", "R..R", ".RR."] },
+  { id: "kiss", group: "Warm-up", name: "a kiss",
+    start: ["R...", ".R..", "....", "...."], rows: ["R..R", ".RR.", ".RR.", "R..R"] },
+  { id: "flower", group: "Warm-up", name: "a flower",
+    start: [".Y..", "YRY.", "YRY.", ".Y.."], rows: [".YY.", "YOOY", "YOOY", ".YY."] },
+  { id: "sunset", group: "Warm-up", name: "a sunset",
+    start: ["....", ".YR.", "..B.", "...."], rows: ["....", "ROOR", "BBBB", "...."] },
+  // Easy: bigger sheet, nothing can go wrong, but order changes the count
+  { id: "lantern", group: "Easy", name: "a paper lantern",
+    start: ["......", "......", "......", "......", "...R..", ".BY..."],
+    rows: [".BYYB.", "..RR..", ".BOOB.", ".BOOB.", "..RR..", ".BYYB."] },
+  { id: "sweet", group: "Easy", name: "a wrapped sweet",
+    start: ["......", ".....Y", "....BR", "......", "......", "......"],
+    rows: ["......", "Y.YY.Y", "RBPPBR", "RBPPBR", "Y.YY.Y", "......"] },
+  { id: "blanket", group: "Easy", name: "a picnic blanket",
+    start: ["...R..", "......", "......", "......", "BY....", "......"],
+    rows: ["RRRRRR", "BYGGYB", "......", "......", "BYGGYB", "RRRRRR"] },
+  // Medium: some presses look fine but make the picture impossible
+  { id: "present", group: "Medium", name: "a wrapped present",
+    start: ["......", ".R....", "...Y..", "..B...", "......", "......"],
+    rows: ["..YY..", "RRBBRR", "..GG..", "..GG..", "RRBBRR", "..YY.."] },
+  { id: "railway", group: "Medium", name: "a railway",
+    start: ["....B", ".R...", ".....", ".....", "....Y"],
+    rows: [".R..G", ".R..G", ".R..G", ".R..G", ".R..Y"] },
+  { id: "flag", group: "Medium", name: "a flag",
+    start: ["......", "......", "YR....", ".....B", "......", "......"],
+    rows: ["BBBBBB", "YROORY", "YROORY", "BBBBBB", "......", "......"] },
+  // Hard: five presses, and most first moves lead nowhere
+  { id: "frame", group: "Hard", name: "a picture frame",
+    start: [".....R", "......", "......", "......", "......", "BY...."],
+    rows: ["PORROP", "BY..YB", "......", "......", "BY..YB", "PORROP"] },
+  { id: "gate", group: "Hard", name: "a garden gate",
+    start: ["......", "...Y..", "....R.", "......", "......", ".....B"],
+    rows: ["B....B", "GYYYYG", ".R..R.", ".R..R.", "GYYYYG", "B....B"] }
+];
+LEVELS.forEach((lv, i) => { lv.label = "Level " + (i + 1); });
+const TUTORIAL_LEVEL = { id: "tutorial", label: "Tutorial", name: "four corners",
+  start: ["R...", "....", "....", "...Y"], rows: ["O..O", "....", "....", "O..O"] };
+const BANDS = [[0, "Par. Perfectly pressed"], [1, "Bogey. One press over"],
+  [2, "Double bogey"], [Infinity, "You got there in the end"]];
+
+const levelCache = new Map();
+function levelData(lv) {
+  if (!levelCache.has(lv.id)) levelCache.set(lv.id, E.makeLevel(lv.rows, lv.start));
+  return levelCache.get(lv.id);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HELPERS (copied from Threads)
+   ════════════════════════════════════════════════════════════════════════ */
+const $ = s => document.querySelector(s);
+const el = (t, cls) => { const e = document.createElement(t); if (cls) e.className = cls; return e; };
+const prefersReducedMotion = () =>
+  window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function anim(element, keyframes, options = {}) {
+  if (!element) return Promise.resolve();
+  if (prefersReducedMotion()) {
+    if (options.reduced === null) return Promise.resolve();
+    return element.animate(options.reduced || [{ opacity: 0.6 }, { opacity: 1 }], { duration: 120 }).finished.catch(() => {});
+  }
+  const { reduced, ...waapi } = options;
+  return element.animate(keyframes, Object.assign({ duration: 300, easing: "ease" }, waapi)).finished.catch(() => {});
+}
+function stagger(elements, delayEach, make) {
+  return Promise.all([...elements].map((e, i) =>
+    new Promise(res => setTimeout(() => make(e, i).then(res), prefersReducedMotion() ? 0 : i * delayEach))));
+}
+const wait = ms => new Promise(res => setTimeout(res, prefersReducedMotion() ? 0 : ms));
+const hold = ms => new Promise(res => setTimeout(res, ms));
+const HAPTIC_PATTERNS = { press: 12, undo: 5, win: [12, 40, 12], hint: 15, nudge: [10, 30, 10], select: 8 };
+function haptic(kind) {
+  const pattern = HAPTIC_PATTERNS[kind];
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); return; } catch (e) {} }
+  try { $("#haptic-tick-label").click(); } catch (e) {}
+}
+let toastT;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1800);
+}
+function shake(node, cls) { node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════════════════════════ */
+const S = {
+  levelId: LEVELS[0].id,
+  lv: null,            // {w,h,start,target,solution,par}
+  sheet: null,         // current {w,h,cells}
+  history: [],         // sheets before each press (for undo)
+  moves: [],           // creases pressed
+  won: false,
+  checking: false,     // blocks input during press / win sequences
+  sel: null,           // tap-selected crease {axis, at}
+  hint: null,          // hinted move {axis, at}
+  hints: 0,
+  undos: 0,           // presses taken back (Undo or Reset); shown with the score, not counted in it
+  tutorial: null,      // {step} while the tutorial runs
+  debug: false,
+  progress: {}         // levelId -> best press count
+};
+const PROGRESS_KEY = "fold-ink-progress", SEEN_HOW = "fold-ink-how-seen";
+try { S.progress = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (e) {}
+const saveProgress = () => { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(S.progress)); } catch (e) {} };
+const level = () => S.tutorial ? TUTORIAL_LEVEL : LEVELS.find(l => l.id === S.levelId);
+const sameMove = (a, b) => !!(a && b && a.axis === b.axis && a.at === b.at && a.side === b.side);
+const sameLine = (a, b) => !!(a && b && a.axis === b.axis && a.at === b.at);
+const movingIdx = (s, c) => { const out = [];
+  for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) if (E.isMoving(x, y, c)) out.push(y * s.w + x);
+  return out; };
+// both halves print the same, so `side` is only which half animates; default
+// to folding the smaller half
+const withSide = (c, s) => c.side ? c
+  : Object.assign({ side: 2 * c.at <= (c.axis === "v" ? s.w : s.h) ? "lo" : "hi" }, c);
+const easeInCubic = k => k * k * k;
+const easeOutCubic = k => 1 - Math.pow(1 - k, 3);
+const easeOutBack = k => 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);
+// drive a value with requestAnimationFrame (used for the flap angle, which also
+// toggles classes as it passes upright, so a CSS animation won't do)
+function tween(from, to, ms, ease, onFrame) {
+  if (prefersReducedMotion() || ms <= 0) { onFrame(to); return Promise.resolve(); }
+  return new Promise(res => {
+    const t0 = performance.now();
+    const step = now => {
+      const k = Math.min(1, (now - t0) / ms);
+      onFrame(from + (to - from) * ease(k));
+      if (k < 1) requestAnimationFrame(step); else res();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOARD RENDERER: keyed cell nodes (created once per sheet size) plus an
+   overlay redrawn each render for the preview, crease line and notches.
+   ════════════════════════════════════════════════════════════════════════ */
+function makeBoard(root) {
+  const cellsWrap = el("div", "fcells"), over = el("div", "fover");
+  root.append(cellsWrap, over);
+  let W = 0, H = 0, cell = 0, nodes = [];
+  const place = (n, x, y) => { n.style.left = x * cell + "px"; n.style.top = y * cell + "px"; };
+  function measure() {
+    cell = root.clientWidth / (W || 1);
+    root.style.setProperty("--cell", cell + "px");
+    nodes.forEach((n, i) => place(n, i % W, Math.floor(i / W)));
+  }
+  function setSize(w, h) {
+    if (w !== W || h !== H) {
+      W = w; H = h; cellsWrap.textContent = ""; nodes = [];
+      for (let i = 0; i < w * h; i++) {
+        const n = el("div", "fcell"); n.appendChild(el("i", "fink"));
+        cellsWrap.appendChild(n); nodes.push(n);
+      }
+    }
+    measure();
+  }
+  function line(c, cls) {
+    const n = el("div", "fline fline--" + c.axis + (cls ? " " + cls : ""));
+    if (c.axis === "v") { n.style.left = c.at * cell - 1 + "px"; n.style.top = -0.15 * cell + "px"; n.style.height = (H + 0.3) * cell + "px"; }
+    else { n.style.top = c.at * cell - 1 + "px"; n.style.left = -0.15 * cell + "px"; n.style.width = (W + 0.3) * cell + "px"; }
+    return n;
+  }
+  function render(s, o = {}) {
+    const t = o.target, hide = o.hide || (o.lift ? new Set(movingIdx(s, o.lift)) : null);
+    const hinted = o.hint && sameLine(o.hint, o.sel) ? new Set(E.changes(s, o.hint).map(p => p.i)) : null;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i], ch = s.cells[i], want = t ? t.cells[i] : ".";
+      const smudge = !!t && E.isSmudge(ch, want), need = E.missing(ch, want);
+      n.style.setProperty("--ink", ch === "." ? "transparent" : COLOURS[ch]);
+      // blank: outline in the colour wanted; inked: a dot of the ink still missing
+      if (need !== ".") n.style.setProperty("--want", COLOURS[ch === "." ? want : need]);
+      n.classList.toggle("fcell--guide", !!t && ch === "." && want !== ".");
+      n.classList.toggle("fcell--wrong", !!t && ch !== "." && !smudge && need !== ".");
+      n.classList.toggle("fcell--smudge", smudge);
+      n.classList.toggle("fcell--lifted", !!hide && hide.has(i));
+      n.classList.toggle("fcell--hint", !!hinted && hinted.has(i));
+    }
+    over.textContent = "";
+    if (o.sel && !o.lift) {
+      const c = withSide(o.sel, s), k = c.at, n = c.axis === "v" ? W : H;
+      const a = c.side === "lo" ? k : Math.max(0, 2 * k - n), b = c.side === "lo" ? Math.min(n, 2 * k) : k;
+      const flap = el("div", "fflap");
+      if (c.axis === "v") { flap.style.left = a * cell + "px"; flap.style.top = 0; flap.style.width = (b - a) * cell + "px"; flap.style.height = H * cell + "px"; }
+      else { flap.style.top = a * cell + "px"; flap.style.left = 0; flap.style.height = (b - a) * cell + "px"; flap.style.width = W * cell + "px"; }
+      over.appendChild(flap);
+      for (const p of E.changes(s, c)) {
+        const g = el("div", "fghost");
+        if (t && E.isSmudge(p.colour, t.cells[p.i])) g.classList.add("fghost--bad");
+        place(g, p.i % W, Math.floor(p.i / W));
+        g.style.setProperty("--ink", COLOURS[p.colour]);
+        g.appendChild(el("i"));
+        over.appendChild(g);
+      }
+    }
+    if (o.lift) {
+      // shadow on the part of the sheet the flap will land on, darkest at the crease
+      const c = o.lift, k = c.at, n = c.axis === "v" ? W : H;
+      const a = c.side === "lo" ? k : Math.max(0, 2 * k - n), b = c.side === "lo" ? Math.min(n, 2 * k) : k;
+      const sh = el("div", "fshade");
+      const dir = c.axis === "v" ? (c.side === "lo" ? "right" : "left") : (c.side === "lo" ? "bottom" : "top");
+      sh.style.background = `linear-gradient(to ${dir},oklch(0 0 0/.22),transparent)`;
+      if (c.axis === "v") { sh.style.left = a * cell + "px"; sh.style.top = 0; sh.style.width = (b - a) * cell + "px"; sh.style.height = H * cell + "px"; }
+      else { sh.style.top = a * cell + "px"; sh.style.left = 0; sh.style.height = (b - a) * cell + "px"; sh.style.width = W * cell + "px"; }
+      over.appendChild(sh);
+      // one dot per touching pair that will change, where the two squares meet
+      const nx = E.press(s, c);
+      for (const [i, j] of E.pairs(s, c)) {
+        if (nx.cells[i] === s.cells[i] && nx.cells[j] === s.cells[j]) continue;
+        const stay = E.isMoving(i % W, Math.floor(i / W), c) ? j : i;
+        const g = el("div", "fswatch");
+        if (t && (E.isSmudge(nx.cells[i], t.cells[i]) || E.isSmudge(nx.cells[j], t.cells[j]))) g.classList.add("fswatch--bad");
+        place(g, stay % W, Math.floor(stay / W));
+        g.style.setProperty("--ink", COLOURS[nx.cells[i]]);
+        g.appendChild(el("i"));
+        over.appendChild(g);
+      }
+    }
+    const ln = o.lift || o.sel;
+    if (ln) over.appendChild(line(ln, o.hint && !o.lift && sameLine(o.hint, o.sel) ? "fline--hint" : ""));
+    if (o.notches) {
+      const add = (axis, k) => {
+        const n = el("button", "fnotch fnotch--" + axis);
+        n.type = "button";
+        n.setAttribute("aria-label", (axis === "v" ? "Vertical" : "Horizontal") + " fold line " + k);
+        if (axis === "v") { n.style.left = k * cell - 22 + "px"; n.style.top = "-44px"; }
+        else { n.style.top = k * cell - 22 + "px"; n.style.left = "-44px"; }
+        if (o.sel && o.sel.axis === axis && o.sel.at === k) n.classList.add("fnotch--on");
+        if (o.hint && o.hint.axis === axis && o.hint.at === k) n.classList.add("fnotch--hint");
+        n.dataset.axis = axis; n.dataset.at = k;
+        over.appendChild(n);
+      };
+      for (let k = 1; k < W; k++) add("v", k);
+      for (let k = 1; k < H; k++) add("h", k);
+    }
+  }
+  /* a flap of paper hinged on crease c (with side), lifted to `theta` degrees:
+     0 = flat on the desk, 180 = folded right over */
+  function flap(s, c) {
+    const moving = movingIdx(s, c);
+    const fl = el("div", "flipper");
+    fl.style.transformOrigin = c.axis === "v" ? `${c.at * cell}px 0` : `0 ${c.at * cell}px`;
+    const fn = c.axis === "v" ? "rotateY" : "rotateX";
+    const sign = c.axis === "v" ? (c.side === "lo" ? 1 : -1) : (c.side === "lo" ? -1 : 1);
+    const faces = moving.map(i => {
+      const f = el("div", "fface"); place(f, i % W, Math.floor(i / W)); f.appendChild(el("i"));
+      fl.appendChild(f); return [i, f];
+    });
+    const paint = sheet => faces.forEach(([i, f]) =>
+      f.style.setProperty("--ink", sheet.cells[i] === "." ? "transparent" : COLOURS[sheet.cells[i]]));
+    paint(s);
+    root.appendChild(fl);
+    let theta = 0;
+    const set = th => {
+      theta = th;
+      const lift = Math.sin(th * Math.PI / 180), isOver = th > 90;
+      fl.style.transform = `${fn}(${sign * th}deg)`;
+      fl.style.setProperty("--shade", (lift * 0.12).toFixed(3));
+      fl.classList.toggle("flipper--over", isOver);
+      root.classList.toggle("fboard--over", isOver);
+      const sh = over.querySelector(".fshade");
+      if (sh) sh.style.opacity = lift.toFixed(3);
+    };
+    set(0);
+    const to = (b, ms, ease) => tween(theta, b, ms, ease, set);
+    const remove = () => { fl.remove(); root.classList.remove("fboard--over"); };
+    // let go before it's over: the paper falls back flat
+    const fall = async () => { await to(0, 140 + theta * 1.2, easeOutCubic); remove(); };
+    return { set, to, paint, remove, fall, get theta() { return theta; } };
+  }
+  // fold the flap the rest of the way, press (the touching inks mix on both
+  // sides), then open it back up showing what it picked up
+  async function press(prev, next, c, o = {}) {
+    c = withSide(c, prev);
+    const fresh = [];
+    for (let i = 0; i < nodes.length; i++) if (prev.cells[i] !== next.cells[i]) fresh.push(i);
+    if (prefersReducedMotion()) {
+      if (o.flap) o.flap.remove();
+      render(next, o);
+      await Promise.all(fresh.map(i => anim(nodes[i].firstChild, null, {})));
+      return;
+    }
+    const moving = new Set(movingIdx(prev, c));
+    const ro = Object.assign({}, o, { hide: moving, flap: null });
+    render(prev, ro);
+    const f = o.flap || flap(prev, c);
+    await f.to(180, Math.max(90, 260 * (180 - f.theta) / 180), easeInCubic);
+    render(next, ro);
+    f.paint(next);
+    await Promise.all([
+      anim(root, [{ transform: "scale(1)" }, { transform: "scale(.982)" }, { transform: "scale(1)" }],
+        { duration: 140, easing: "ease-out", reduced: null }),
+      ...fresh.filter(i => !moving.has(i)).map(i => anim(nodes[i].firstChild,
+        [{ transform: "scale(.55)", opacity: 0.4 }, { transform: "scale(1.08)", opacity: 1, offset: 0.6 }, { transform: "scale(1)", opacity: 1 }],
+        { duration: 220, easing: "cubic-bezier(.34,1.56,.64,1)" }))
+    ]);
+    await f.to(0, 340, easeOutBack);
+    f.remove();
+    render(next, o);
+  }
+  const toGrid = (cx, cy) => { const r = root.getBoundingClientRect();
+    return { x: (cx - r.left) / cell, y: (cy - r.top) / cell }; };
+  const inkNodes = () => nodes.filter(n => n.style.getPropertyValue("--ink") !== "transparent").map(n => n.firstChild);
+  return { render, press, flap, toGrid, measure, setSize, inkNodes };
+}
+
+function renderThumb() {
+  const t = $("#thumb"), lv = S.lv;
+  t.textContent = "";
+  t.style.gridTemplateColumns = `repeat(${lv.w},1fr)`;
+  t.style.width = lv.w * 0.75 + 0.6 + "rem";
+  for (const ch of lv.target.cells) {
+    const i = el("i");
+    if (ch !== ".") i.style.background = COLOURS[ch];
+    t.appendChild(i);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PLAY
+   ════════════════════════════════════════════════════════════════════════ */
+const board = makeBoard($("#fboard"));
+const reveal = makeBoard($("#reveal"));
+
+function resetRound() {
+  S.lv = levelData(level());
+  S.sheet = S.lv.start; S.history = []; S.moves = [];
+  S.won = false; S.checking = false; S.sel = null; S.hint = null; S.hints = 0; S.undos = 0;
+  reviewingResult = false;
+}
+
+function renderPlay(o = {}) {
+  board.render(S.sheet, Object.assign({ target: S.won ? null : S.lv.target,
+    sel: S.sel, hint: S.hint, notches: !S.won }, o));
+  $("#foldCount").textContent = S.moves.length;
+  $("#parLabel").textContent = "/ par " + S.lv.par;
+  $("#undoBtn").disabled = S.checking || S.won || !S.moves.length;
+  $("#resetBtn").disabled = S.checking || S.won || !S.moves.length;
+  $("#hintBtn").disabled = S.checking || S.won;
+  if (S.debug) renderDebug();
+}
+
+function nudge() {
+  haptic("nudge");
+  shake($("#fboard"), "fboard--shake");
+}
+
+async function doPress(c, o = {}) {
+  if (S.checking || S.won) { if (o.flap) o.flap.remove(); return; }
+  // a rejected press: a lifted flap falls back flat first
+  const reject = async () => {
+    if (!o.flap) return;
+    S.checking = true; await o.flap.fall(); S.checking = false;
+  };
+  if (S.tutorial && !sameLine(c, TUT_STEPS[S.tutorial.step].move)) {
+    await reject(); nudge(); S.sel = null; renderPlay(); armTutHint(0); return;
+  }
+  c = withSide(c, S.sheet);
+  const prev = S.sheet, next = E.press(prev, c);
+  if (next.cells === prev.cells) {           // nothing would change: don't count it
+    await reject(); nudge(); toast("Nothing new to print there"); S.sel = null; renderPlay(); return;
+  }
+  S.checking = true; S.sel = null; S.hint = null; stopTutHint();
+  renderPlay(o.flap ? { lift: c } : {});
+  await board.press(prev, next, c, { target: S.lv.target, notches: true, flap: o.flap });
+  S.history.push(prev); S.moves.push(c); S.sheet = next;
+  haptic("press");
+  if (E.isSolved(next, S.lv.target)) { await win(); return; }
+  S.checking = false;
+  renderPlay();
+  if (E.isDead(next, S.lv.target)) { nudge(); toast("Smudged! Undo to clean it up"); }
+  if (S.tutorial) setTutorialStep(S.tutorial.step + 1);
+}
+
+function undo() {
+  if (S.checking || S.won || !S.history.length) return;
+  S.sheet = S.history.pop(); S.moves.pop(); S.sel = null; S.hint = null; S.undos++;
+  haptic("undo"); renderPlay();
+}
+function resetBoard() {
+  if (S.checking || S.won || !S.history.length) return;
+  S.undos += S.moves.length;
+  S.sheet = S.lv.start; S.history = []; S.moves = []; S.sel = null; S.hint = null;
+  renderPlay();
+}
+$("#undoBtn").onclick = undo;
+$("#resetBtn").onclick = resetBoard;
+
+/* ── input: pick up a side and fold it like paper, or tap notch → sheet ──────
+   The flap hinges on a grid line and turns so the spot you grabbed stays
+   under your finger. The hinge is the line halfway between where you grabbed
+   and where your finger is (as with real paper), and always lies past the
+   square you grabbed. Let go once it's past upright and it presses; let go
+   before that and it falls back. */
+let drag = null;
+function creaseFromDrag(p, q, axis) {
+  const pv = axis === "v" ? p.x : p.y, qv = axis === "v" ? q.x : q.y;
+  if (Math.abs(qv - pv) < 0.1) return null;
+  const n = axis === "v" ? S.sheet.w : S.sheet.h, g = Math.floor(pv), mid = Math.round((pv + qv) / 2);
+  const side = qv > pv ? "lo" : "hi";
+  const at = side === "lo" ? Math.min(n - 1, Math.max(g + 1, mid)) : Math.max(1, Math.min(g, mid));
+  if (side === "lo" ? at <= g : at > g) return null;          // no line on that side of the grab
+  const reach = Math.max(0.01, side === "lo" ? at - pv : pv - at), u = side === "lo" ? at - qv : qv - at;
+  const theta = Math.acos(Math.max(-1, Math.min(1, u / reach))) * 180 / Math.PI;
+  return { axis, at, side, theta };
+}
+function dropFlap(d) { if (d && d.flap) { d.flap.remove(); d.flap = null; } }
+const fb = $("#fboard");
+fb.addEventListener("pointerdown", e => {
+  if (S.checking || S.won || !e.isPrimary || e.target.closest(".fnotch")) return;
+  const p = board.toGrid(e.clientX, e.clientY);
+  const onSheet = p.x >= 0 && p.y >= 0 && p.x < S.sheet.w && p.y < S.sheet.h;
+  drag = { p, onSheet, moved: false, axis: null, crease: null, flap: null, over: false };
+  fb.setPointerCapture(e.pointerId);
+});
+fb.addEventListener("pointermove", e => {
+  if (!drag || !drag.onSheet) return;
+  const q = board.toGrid(e.clientX, e.clientY);
+  const dx = q.x - drag.p.x, dy = q.y - drag.p.y, dist = Math.hypot(dx, dy);
+  if (!drag.axis) {
+    if (dist < 0.25) return;
+    drag.axis = Math.abs(dx) >= Math.abs(dy) ? "v" : "h";     // lock the direction once you start
+    drag.moved = true;
+  } else if (dist < 0.12) {                                    // back where you started: put it down
+    drag.axis = null; drag.crease = null; dropFlap(drag); renderPlay(); return;
+  }
+  const c = creaseFromDrag(drag.p, q, drag.axis);
+  if (!c) { if (drag.crease) { drag.crease = null; dropFlap(drag); renderPlay(); } return; }
+  if (!sameMove(c, drag.crease)) {
+    dropFlap(drag);
+    renderPlay({ lift: c, sel: null });
+    drag.flap = board.flap(S.sheet, c);
+    if (drag.crease) haptic("select");
+    drag.crease = c;
+  }
+  drag.crease.theta = c.theta;
+  drag.flap.set(c.theta);
+  if (c.theta > 90 !== drag.over) { drag.over = c.theta > 90; if (drag.over) haptic("select"); }
+});
+fb.addEventListener("pointerup", async () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.moved) {
+    if (d.crease && d.crease.theta > 90) { doPress(d.crease, { flap: d.flap }); return; }
+    if (d.flap) { S.checking = true; await d.flap.fall(); S.checking = false; }
+    renderPlay(); return;
+  }
+  if (!d.onSheet) return;
+  if (!S.sel) { nudge(); toast("Pick up a side and fold it over a line"); return; }
+  const v = S.sel.axis === "v" ? Math.floor(d.p.x) : Math.floor(d.p.y);
+  doPress({ axis: S.sel.axis, at: S.sel.at, side: v < S.sel.at ? "lo" : "hi" });
+});
+fb.addEventListener("pointercancel", () => { dropFlap(drag); drag = null; renderPlay(); });
+fb.addEventListener("click", e => {
+  const n = e.target.closest(".fnotch");
+  if (!n || S.checking || S.won) return;
+  const c = { axis: n.dataset.axis, at: +n.dataset.at };
+  S.sel = sameLine(S.sel, c) ? null : c;
+  if (S.hint && !sameLine(S.hint, S.sel)) S.hint = null;
+  haptic("select");
+  renderPlay();
+});
+
+/* ── hints: highlight the next crease of a shortest route + the side to fold ─ */
+function nextMove() {
+  const sol = S.lv.solution;
+  if (S.moves.length < sol.length && S.moves.every((m, i) => sameLine(m, sol[i]))) return sol[S.moves.length];
+  const r = E.solve(S.sheet, S.lv.target, { maxDepth: 10 });
+  return r && r[0];
+}
+function doHint() {
+  if (S.checking || S.won) return;
+  const m = E.isDead(S.sheet, S.lv.target) ? null : nextMove();
+  if (!m) { shake($("#hintBtn"), "iconbtn--shake"); toast("Some ink smudged. Try Undo"); return; }
+  S.hints++;
+  S.hint = m; S.sel = { axis: m.axis, at: m.at };
+  haptic("hint");
+  renderPlay();
+}
+$("#hintBtn").onclick = doHint;
+
+/* ════════════════════════════════════════════════════════════════════════
+   WIN + REVEAL
+   ════════════════════════════════════════════════════════════════════════ */
+async function win() {
+  S.won = true;
+  haptic("win");
+  renderPlay();
+  await stagger(board.inkNodes(), 30, n => anim(n,
+    [{ transform: "scale(1)" }, { transform: "scale(1.15)", offset: 0.4 }, { transform: "scale(1)" }],
+    { duration: 320, easing: "cubic-bezier(.34,1.56,.64,1)", reduced: null }));
+  await wait(400);
+  S.checking = false;
+  if (S.tutorial) { setTutorialStep(3); return; }
+  finish();
+}
+
+const scoreLabel = diff => (diff > 0 ? "+" + diff : diff === 0 ? "E" : String(diff));
+const undoLabel = n => n + (n === 1 ? " undo" : " undos");
+let reviewingResult = false;
+function finish() {
+  const lv = level(), n = S.moves.length, diff = n - S.lv.par;
+  const best = S.progress[lv.id];
+  if (best == null || n < best) { S.progress[lv.id] = n; saveProgress(); }
+  $("#done-folds").textContent = n + (n === 1 ? " press" : " presses");
+  $("#done-band").textContent = "Par " + S.lv.par + " (" + scoreLabel(diff) + "). " + BANDS.find(([t]) => diff <= t)[1];
+  $("#done-undos").textContent = S.undos ? "Found it with " + undoLabel(S.undos) : "No undos. Clean sheet!";
+  $("#reveal-cap").textContent = "Today's reveal: " + lv.name;
+  $("#replayBtn").textContent = "Watch it print";
+  go("done");
+  reveal.setSize(S.lv.w, S.lv.h);
+  reveal.render(S.sheet);
+  setTimeout(() => $("#done-title").classList.add("animate-celebrate"), 300);
+}
+
+let replaying = false;
+$("#replayBtn").onclick = async () => {
+  if (replaying) return;
+  replaying = true; $("#replayBtn").disabled = true;
+  let s = S.lv.start;
+  reveal.render(s);
+  await hold(400);
+  for (const c of S.moves) {
+    const n = E.press(s, c);
+    await reveal.press(s, n, c);
+    s = n;
+    await hold(prefersReducedMotion() ? 450 : 150);
+  }
+  $("#replayBtn").textContent = "Watch again";
+  $("#replayBtn").disabled = false; replaying = false;
+};
+
+$("#shareBtn").onclick = async () => {
+  const lv = level(), diff = S.moves.length - S.lv.par;
+  const art = E.toRows(S.lv.target).map(r => [...r].map(ch => EMOJI[ch]).join("")).join("\n");
+  const txt = "Untitled Fold Game \xb7 " + lv.label + "\n\ud83d\udda8 " + S.moves.length + " presses \xb7 par "
+    + S.lv.par + " (" + scoreLabel(diff) + ") \xb7 " + undoLabel(S.undos) + "\n\n" + art
+    + "\n\nToday's reveal: " + lv.name + "\n\ndailymail.co.uk/puzzles";
+  try { await navigator.clipboard.writeText(txt); toast("Copied"); }
+  catch { toast("Copy failed"); }
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   SHELL
+   ════════════════════════════════════════════════════════════════════════ */
+const MARK = size => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 48 48" aria-label="Untitled Fold Game">'
+  + '<path d="M6 8a2 2 0 0 1 2-2h22l12 12v22a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z" fill="var(--or-500)"/>'
+  + '<path d="M30 6v10a2 2 0 0 0 2 2h10z" fill="var(--um-500)"/></svg>';
+
+function go(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $("#s-" + name).classList.add("on");
+  document.body.style.background =
+    name === "start" || name === "levels" ? "var(--_surface)" : name === "done" ? "var(--or-100)" : "var(--background)";
+  closeSheet();
+  if (name === "levels") renderLevels();
+  if (name === "play") {
+    $("#s-play").classList.toggle("tut", !!S.tutorial);
+    $("#backResultsBtn").hidden = !(reviewingResult && S.won && !S.tutorial);
+    board.setSize(S.lv.w, S.lv.h);
+    renderThumb();
+    renderPlay();
+  }
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
+
+function renderLevels() {
+  const grid = $("#levels-grid");
+  grid.textContent = "";
+  const done = LEVELS.filter(l => S.progress[l.id] != null).length;
+  $("#levels-progress").textContent = done + " of " + LEVELS.length + " games complete";
+  let group = null;
+  for (const lv of LEVELS) {
+    if (lv.group !== group) {
+      group = lv.group;
+      const h = el("h2", "lvl-group"); h.textContent = group;
+      grid.appendChild(h);
+    }
+    const best = S.progress[lv.id], par = levelData(lv).par;
+    const card = el("button", "lvl" + (best != null ? " lvl--done" : ""));
+    const name = el("span", "lvl__cat"); name.textContent = lv.label;
+    const st = el("span", "lvl__status"); st.textContent = best != null ? (best <= par ? "\u2713 " : "") + "Best " + best + " \xb7 par " + par : "Par " + par;
+    card.append(name, st);
+    card.onclick = () => selectLevel(lv.id);
+    grid.appendChild(card);
+  }
+}
+function selectLevel(id) {
+  S.levelId = id;
+  resetRound();
+  $("#start-cat").textContent = level().group + " \xb7 " + level().label + " \xb7 par " + S.lv.par;
+  $("#start-status").textContent = S.progress[id] != null ? "Completed \u2713" : S.lv.w + "\xd7" + S.lv.h + " sheet";
+  go("start");
+}
+function nextGame() {
+  const i = LEVELS.findIndex(l => l.id === S.levelId);
+  S.levelId = LEVELS[(i + 1) % LEVELS.length].id;
+  resetRound();
+  go("play");
+}
+$("#startPlayBtn").onclick = () => { if (!localStorage.getItem(SEEN_HOW)) startTutorial(); else go("play"); };
+$("#nextGameBtn").onclick = nextGame;
+$("#backPuzzleBtn").onclick = () => { reviewingResult = true; go("play"); };
+$("#backResultsBtn").onclick = () => go("done");
+
+const openSheet = () => { $("#sheet").classList.add("on"); $("#scrim").classList.add("on"); };
+const closeSheet = () => { $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); };
+$("#helpBtn").onclick = openSheet;
+$("#scrim").onclick = closeSheet;
+$("#replayTutBtn").onclick = () => { closeSheet(); startTutorial(); };
+
+/* ════════════════════════════════════════════════════════════════════════
+   TUTORIAL: two scripted presses on a 4×4 sheet with one ink dot, using the
+   real engine. Only the expected press is accepted (anything else gets a
+   gentle shake), and after 3s idle the crease to use pulses.
+   ════════════════════════════════════════════════════════════════════════ */
+const TUT_STEPS = {
+  1: { copy: "Wet ink prints onto whatever it touches. Drag the <strong>left half</strong> over to the right.",
+       pill: "Fold the left half over", move: { axis: "v", at: 2, side: "lo" } },
+  2: { copy: "Both sides printed onto each other! Now fold the <strong>top half</strong> down. Red and yellow make\u2026",
+       pill: "Fold the top half down", move: { axis: "h", at: 2, side: "lo" } },
+  3: { copy: "Orange! Four corners in two presses. Fewer presses is better. Here\u2019s your puzzle\u2026",
+       pill: "Play the puzzle", done: true }
+};
+let tutTimer = null, tutEnding = false, tutReturn = null;
+function stopTutHint() { clearTimeout(tutTimer); tutTimer = null; }
+function armTutHint(delay = 3000) {
+  stopTutHint();
+  if (!S.tutorial || !TUT_STEPS[S.tutorial.step].move) return;
+  tutTimer = setTimeout(() => {
+    if (!S.tutorial || S.checking || drag) return;
+    const m = TUT_STEPS[S.tutorial.step].move;
+    S.hint = m; S.sel = { axis: m.axis, at: m.at };
+    renderPlay();
+  }, delay);
+}
+function setTutorialStep(n) {
+  if (!S.tutorial || S.tutorial.step === 3) return;
+  S.tutorial.step = n;
+  const s = TUT_STEPS[n];
+  $("#tut-copy").innerHTML = s.copy;
+  $("#tut-pill").textContent = s.pill;
+  $("#tut-pill").classList.toggle("tut-pill--action", !!s.done);
+  $("#tut-pill").disabled = !s.done;
+  if (s.done) setTimeout(() => { if (S.tutorial) endTutorial({ loading: true }); }, prefersReducedMotion() ? 500 : 1500);
+  else armTutHint();
+}
+function startTutorial() {
+  tutReturn = { levelId: S.levelId, sheet: S.sheet, history: S.history, moves: S.moves, won: S.won, hints: S.hints, undos: S.undos };
+  S.tutorial = { step: 0 };
+  resetRound();
+  go("play");
+  setTutorialStep(1);
+}
+async function endTutorial(opts) {
+  if (tutEnding) return;
+  tutEnding = true;
+  stopTutHint();
+  S.tutorial = null;
+  try { localStorage.setItem(SEEN_HOW, "1"); } catch (e) {}
+  const restore = () => {
+    const r = tutReturn; tutReturn = null;
+    S.levelId = r.levelId; resetRound();
+    if (r.sheet && r.history.length) Object.assign(S, { sheet: r.sheet, history: r.history, moves: r.moves, won: r.won, hints: r.hints, undos: r.undos });
+    go("play");
+  };
+  if (opts && opts.loading) {
+    $("#loader").classList.add("on");
+    await hold(900); restore(); await hold(150);
+    $("#loader").classList.remove("on");
+  } else restore();
+  tutEnding = false;
+}
+$("#tutSkip").onclick = () => endTutorial();
+$("#tut-pill").onclick = () => { if (S.tutorial && TUT_STEPS[S.tutorial.step].done) endTutorial({ loading: true }); };
+
+/* ════════════════════════════════════════════════════════════════════════
+   DEBUG (hidden): backtick key or ?debug. Shows the solution + the grid.
+   ════════════════════════════════════════════════════════════════════════ */
+const fmtMove = m => (m.axis === "v" ? "x=" : "y=") + m.at;
+function renderDebug() {
+  const here = E.isDead(S.sheet, S.lv.target) ? null : E.solve(S.sheet, S.lv.target, { maxDepth: 10 });
+  if (!S.lv.analysis) S.lv.analysis = Object.assign(E.analyse(S.lv.start, S.lv.target, { extra: 3 }),
+    { greedy: E.greedy(S.lv.start, S.lv.target) });
+  const an = S.lv.analysis;
+  $("#dbgSol").textContent = "Par " + S.lv.par + ": " + S.lv.solution.map(fmtMove).join(", ")
+    + "\nFinishing routes at par, +1, +2, +3: " + an.routes.join(" / ")
+    + "\nObvious-move player: " + (an.greedy == null ? "gets stuck" : an.greedy + " presses")
+    + "\n\nPlayed: " + (S.moves.map(fmtMove).join("; ") || "none")
+    + "\nShortest from here: " + (here ? here.length + " (" + here.map(fmtMove).join("; ") + ")" : "none, smudged");
+  const a = E.toRows(S.sheet), b = E.toRows(S.lv.target);
+  $("#dbgGrid").textContent = a.map((r, i) => r + "   " + b[i]).join("\n");
+}
+function setDebug(on) {
+  S.debug = on; $("#dbg").hidden = !on;
+  if (on && S.lv) renderDebug();
+}
+$("#dbgClose").onclick = () => setDebug(false);
+document.addEventListener("keydown", e => {
+  if (e.key === "`") { e.preventDefault(); setDebug($("#dbg").hidden); }
+  if (e.key === "Escape") closeSheet();
+});
+document.querySelectorAll("[data-dbg]").forEach(b => b.onclick = async () => {
+  if (S.checking) return;
+  if (b.dataset.dbg === "reset") { resetRound(); go("play"); return; }
+  if (b.dataset.dbg === "solve") {
+    resetRound(); go("play");
+    for (const m of S.lv.solution) { await doPress(m); await hold(150); }
+  }
+});
+if (new URLSearchParams(location.search).has("debug")) setDebug(true);
+
+window.addEventListener("resize", () => {
+  if ($("#s-play").classList.contains("on")) { board.measure(); renderPlay(); }
+  if ($("#s-done").classList.contains("on") && !replaying) { reveal.measure(); reveal.render(S.sheet); }
+});
+
+/* ── boot ──────────────────────────────────────────────────────────────── */
+$("#mark-lg").innerHTML = MARK(76);
+$("#mark-sm").innerHTML = MARK(32);
+$("#mark-done").innerHTML = MARK(52);
+$("#mark-levels").innerHTML = MARK(64);
+$("#mixkey").innerHTML = [["R", "Y", "O"], ["R", "B", "P"], ["Y", "B", "G"]].map(([a, b, c]) =>
+  `<p><i style="--ink:${COLOURS[a]}"></i>+<i style="--ink:${COLOURS[b]}"></i>=<i style="--ink:${COLOURS[c]}"></i></p>`).join("");
+resetRound();
+go("levels");
+</script>
+</body>
+</html>
