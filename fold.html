@@ -258,12 +258,19 @@ svg{display:block}
 .farcs{position:absolute;left:0;top:0;z-index:8;pointer-events:none;overflow:visible}
 .farcs--in{animation:arcsIn .2s ease .12s both}
 @keyframes arcsIn{from{opacity:0}to{opacity:1}}
-/* fold feel: the flap you pull across turns see-through once it's over, so
-   its ink shows mirrored over the squares it will land on */
-.fleaf--glass.fleaf--over .fface{background:color-mix(in srgb,var(--paper-back) 45%,transparent);
+/* fold feel: the flap you pull across is real-ish paper (see makeFlap). Once
+   a strip of it is over, it turns see-through so its ink shows mirrored over
+   the squares it will land on */
+.fstrip{position:absolute;transform-style:preserve-3d}
+.fclip{position:absolute;inset:0;overflow:hidden}
+.flit{position:absolute;inset:0;pointer-events:none}
+.fleaf--glass .fstrip--over>.fclip .fface{background:color-mix(in srgb,var(--paper-back) 45%,transparent);
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c-ink) 20%,transparent)}
-.fleaf--glass.fleaf--over .fface .fink{opacity:.7}
-.fshade{position:absolute;z-index:4;pointer-events:none;opacity:0}
+.fleaf--glass .fstrip--over>.fclip .fface .fink{opacity:.7}
+.fcast{position:absolute;z-index:4;pointer-events:none;opacity:0;border-radius:4px;background:oklch(0.2 0.02 60)}
+/* a little grain, so it reads as paper */
+.fold-feel .fboard{perspective:1000px}
+.fold-feel .fcell:not(.fcell--lifted),.book-feel .fcell:not(.fcell--lifted){background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .3 0 0 0 0 .2 0 0 0 .09 0'/></filter><rect width='96' height='96' filter='url(%23g)'/></svg>")}
 /* what each touching pair will print, shown once the flap is over */
 .fswatch{position:absolute;z-index:8;width:var(--cell);height:var(--cell);display:grid;place-items:center;
   pointer-events:none;opacity:0;transform:scale(.5);transition:opacity .12s,transform .2s cubic-bezier(.34,1.56,.64,1)}
@@ -281,6 +288,25 @@ svg{display:block}
   background:color-mix(in srgb,var(--muted-foreground) 40%,transparent)}
 .fstage--nudge .fgrip{animation:gripNudge .5s ease-in-out 2}
 @keyframes gripNudge{50%{background:var(--th-gold);transform:scale(1.25)}}
+/* book feel: a gutter all round, so there are tabs on every edge. The tabs on
+   the picked line grow a chevron: drag me across */
+.book-feel .fstage{padding:44px;max-width:calc(22rem + 44px);width:calc(100% + 1.5rem);margin-inline:-.75rem}
+.book-feel .fnotch--on::after{content:"";position:absolute;width:7px;height:7px;border:solid var(--c-ink);
+  border-width:0 2px 2px 0;animation:chevIn 1.2s ease-in-out infinite}
+.book-feel .fnotch--top::after{bottom:3px;left:calc(50% - 4.5px);rotate:45deg;--n:0 3px}
+.book-feel .fnotch--bottom::after{top:3px;left:calc(50% - 4.5px);rotate:-135deg;--n:0 -3px}
+.book-feel .fnotch--left::after{right:3px;top:calc(50% - 4.5px);rotate:-45deg;--n:3px 0}
+.book-feel .fnotch--right::after{left:3px;top:calc(50% - 4.5px);rotate:135deg;--n:-3px 0}
+@keyframes chevIn{50%{translate:var(--n)}}
+/* how far a tab's been dragged in, and the ring it has to pass to press */
+.fzip{position:absolute;z-index:8;pointer-events:none}
+.fzip--fill{background:var(--c-ink);border-radius:2px}
+.fzip--mark{width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;box-sizing:border-box;
+  border:2.5px solid var(--c-ink);background:var(--paper);transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .12s}
+.fzip--past{background:var(--c-ink);transform:scale(1.3)}
+/* the ghost finger that shows a tab can be dragged */
+.fghost{position:absolute;z-index:9;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;pointer-events:none;opacity:0;
+  background:color-mix(in srgb,var(--c-ink) 24%,transparent);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--c-ink) 60%,transparent),0 4px 10px oklch(0 0 0/.18)}
 /* fold feel keeps the tabs for keyboards only */
 .fold-feel .fstage{padding-right:10px}
 .fold-feel .fnotch{opacity:0;pointer-events:none}
@@ -307,7 +333,7 @@ svg{display:block}
 
 @media(prefers-reduced-motion:reduce){
   .fink,.fswatch{transition:none}
-  .fstage--nudge .fgrip,.farcs--in,.fstage--nudge .fnotch::before,.fnotch--hint::before,.fboard--shake,#hintBtn.iconbtn--shake{animation:none}
+  .fstage--nudge .fgrip,.farcs--in,.fstage--nudge .fnotch::before,.fnotch--hint::before,.book-feel .fnotch--on::after,.fboard--shake,#hintBtn.iconbtn--shake{animation:none}
   .loader{transition:none}
 }
 </style>
@@ -470,6 +496,8 @@ svg{display:block}
 const E = FoldEngine;
 // ?feel=fold: pick up an edge and fold it like paper (instead of tabs + tap)
 const FEEL_FOLD = new URLSearchParams(location.search).get("feel") === "fold";
+// ?feel=book: tabs on all four edges, and the whole sheet lifts either side of the line
+const FEEL_BOOK = new URLSearchParams(location.search).get("feel") === "book";
 
 /* ════════════════════════════════════════════════════════════════════════
    CONTENT: a level is the sheet at the start plus the target picture.
@@ -518,6 +546,35 @@ const LEVELS = [
     start: ["......", "...Y..", "....R.", "......", "......", ".....B"],
     rows: ["B....B", "GYYYYG", ".R..R.", ".R..R.", "GYYYYG", "B....B"] }
 ];
+// ?levels=open: trial set after the warm-ups. The only way to get stuck is a
+// smudge (which is warned), so everyone finishes; the challenge is hitting par
+const OPEN_LEVELS = [
+  { id: "o-butterfly", group: "Easy", name: "a butterfly",
+    start: ["......", "......", "......", "......", "..YR..", ".....B"],
+    rows: ["......", "......", "BB..BB", "..OO..", "..OO..", "BB..BB"] },
+  { id: "o-table", group: "Easy", name: "a picnic table",
+    start: ["....R.", "......", "......", "......", "....YR", "......"],
+    rows: [".RRRR.", ".RRRR.", "......", "......", "RYOOYR", "......"] },
+  { id: "o-scarves", group: "Medium", name: "two scarves",
+    start: ["Y.....", ".B....", "......", "......", "......", "......"],
+    rows: ["YBGGBY", "YBGGBY", "......", "......", "YBGGBY", "YBGGBY"] },
+  { id: "o-cake", group: "Medium", name: "a layer cake",
+    start: [".Y...", ".....", ".....", ".....", ".YR.."],
+    rows: [".YYYY", ".OOOO", ".OOOO", ".YYYY", ".OOOO"] },
+  { id: "o-curtains", group: "Medium", name: "curtains",
+    start: [".....R", "....B.", "......", "......", ".....R", "......"],
+    rows: ["RR..RR", "PP..PP", "RR..RR", "PP..PP", "PP..PP", "RR..RR"] },
+  { id: "o-fence", group: "Hard", name: "a fence",
+    start: ["Y.....", "R...R.", "......", "Y.....", "......", "......"],
+    rows: ["OROORO", "OROORO", "......", "Y.YY.Y", "Y.YY.Y", "Y.YY.Y"] },
+  { id: "o-garden", group: "Hard", name: "a garden bed",
+    start: ["......", ".....Y", "......", ".R...B", "...Y..", "......"],
+    rows: ["......", "..YYYY", "RRGGGG", "RRGGGG", "RRGGGG", "RRGGGG"] },
+  { id: "o-arch", group: "Hard", name: "a rose arch",
+    start: [".....R", "......", "YB....", "......", "...R..", "......"],
+    rows: ["RRRRRR", "RRRRRR", "GG..GG", "GG..GG", "RRRRRR", "RRRRRR"] }
+];
+if (new URLSearchParams(location.search).get("levels") === "open") LEVELS.splice(4, Infinity, ...OPEN_LEVELS);
 LEVELS.forEach((lv, i) => { lv.label = "Level " + (i + 1); });
 const TUTORIAL_LEVEL = { id: "tutorial", label: "Tutorial", name: "four corners",
   start: ["R...", "....", "....", "...Y"], rows: ["O..O", "....", "....", "O..O"] };
@@ -621,7 +678,7 @@ const PERSP = 1400, PEEK = 28;     // board perspective in px (matches the CSS),
 const HOVER = 150;                 // fold feel: the angle a flap rests at once you let go
 const SVGNS = "http://www.w3.org/2000/svg";
 function makeBoard(root, opts = {}) {
-  const cellsWrap = el("div", "fcells"), over = el("div", "fover"), fold = !!opts.fold;
+  const cellsWrap = el("div", "fcells"), over = el("div", "fover"), fold = !!opts.fold, whole = !!opts.whole;
   root.append(cellsWrap, over);
   let W = 0, H = 0, cell = 0, nodes = [], peek = null;
   const moves = (i, c) => E.isMoving(i % W, Math.floor(i / W), c);
@@ -630,8 +687,12 @@ function makeBoard(root, opts = {}) {
     else { n.style.top = a * cell + "px"; n.style.left = 0; n.style.height = (b - a) * cell + "px"; n.style.width = W * cell + "px"; }
     return n;
   };
-  // the strips either side of line c that touch when folded: [from, to)
-  const span = c => { const k = Math.min(c.at, (c.axis === "v" ? W : H) - c.at); return [c.at - k, c.at + k]; };
+  // the strips either side of line c that lift: [from, to). Just the ones that
+  // touch, or (whole) the whole sheet
+  const span = c => {
+    if (whole) return [0, c.axis === "v" ? W : H];
+    const k = Math.min(c.at, (c.axis === "v" ? W : H) - c.at); return [c.at - k, c.at + k];
+  };
   const along = (i, axis) => axis === "v" ? i % W : Math.floor(i / W);
   const place = (n, x, y) => { n.style.left = x * cell + "px"; n.style.top = y * cell + "px"; };
   function measure() {
@@ -694,54 +755,142 @@ function makeBoard(root, opts = {}) {
       remove() { token++; leaves.forEach(l => l.remove()); }
     };
   }
-  /* fold feel: the side being folded, as one flap hinged on the crease.
-     theta 0 = flat, 180 = folded right over. Past upright it turns
-     see-through (its ink shows mirrored, like thin paper) */
-  function makeFlap(s, c, theta) {
-    const fn = c.axis === "v" ? "rotateY" : "rotateX";
-    const sign = (c.axis === "v") === (c.side === "lo") ? 1 : -1;
-    const lf = el("div", "fleaf fleaf--glass");
-    lf.style.transformOrigin = c.axis === "v" ? `${c.at * cell}px 0` : `0 ${c.at * cell}px`;
+  /* fold feel: the side being folded, as a sheet of paper hinged on the
+     crease. It's a chain of thin strips, each turned a little from the one
+     before, so the paper bends in a curve rather than at a hinge: a soft arc
+     while it's up, a tight round crease once it's over. The far strips lag a
+     moment behind, so it swings like paper. Each strip is lit by its own
+     angle, and the sheet casts a shadow that softens as it lifts. theta 0 =
+     flat, 180 = folded right over. Past upright a strip turns see-through
+     (its ink shows mirrored, like thin paper) */
+  const STRIPS = 4;                                     // strips per square
+  const LIGHT = [-0.293, -0.461, 0.838];                // from the top left, in front
+  function makeFlap(s, c, theta, o = {}) {
+    const v = c.axis === "v", lo = c.side === "lo", n = v ? W : H;
+    const L = lo ? c.at : n - c.at, w = cell / STRIPS, N = L * STRIPS, len = L * cell, size = w + 0.6;
+    const fn = v ? "rotateY" : "rotateX", sign = v === lo ? 1 : -1, rad = Math.PI / 180;
+    const dir = v ? (lo ? "left" : "right") : (lo ? "top" : "bottom");
+    const lf = el("div", o.glass === false ? "fleaf" : "fleaf fleaf--glass"), cast = o.cast || over.querySelector(".fcast");
     root.appendChild(lf);
-    const faces = [];
-    nodes.forEach((n, i) => {
-      if (!moves(i, c)) return;
-      const f = n.cloneNode(true); f.classList.add("fface"); lf.appendChild(f); faces.push([i, f]);
-    });
-    let token = 0;
+    const strips = [], faces = [];
+    let parent = lf, prevStart = 0;
+    for (let k = 0; k < N; k++) {
+      const st = el("div", "fstrip"), clip = el("div", "fclip"), lit = el("div", "flit");
+      const near = lo ? c.at * cell - k * w : c.at * cell + k * w;      // its edge nearer the crease
+      const start = lo ? near - size : near;                            // its low edge, overlapping the next a hair
+      const rel = k ? start - prevStart : start;
+      prevStart = start;
+      if (v) Object.assign(st.style, { left: rel + "px", top: 0, width: size + "px", height: H * cell + "px" });
+      else Object.assign(st.style, { top: rel + "px", left: 0, height: size + "px", width: W * cell + "px" });
+      st.style.transformOrigin = v ? `${lo ? size : 0}px 0` : `0 ${lo ? size : 0}px`;
+      const line = Math.floor((lo ? near - w / 2 : near + w / 2) / cell);   // the row of squares it cuts through
+      nodes.forEach((nd, i) => {
+        if ((v ? i % W : Math.floor(i / W)) !== line || !moves(i, c)) return;
+        const f = nd.cloneNode(true); f.classList.add("fface");
+        if (v) f.style.left = i % W * cell - start + "px"; else f.style.top = Math.floor(i / W) * cell - start + "px";
+        clip.appendChild(f); faces.push([i, f]);
+      });
+      clip.appendChild(lit); st.appendChild(clip); parent.appendChild(st); parent = st;
+      strips.push({ st, lit });
+    }
+    // where each strip is aiming (its angle from flat, summed from the crease) and where it is
+    const tgt = new Float64Array(N), cur = new Float64Array(N);
+    const anglesFor = th => {
+      const out = new Float64Array(N), bend = Math.max(w, len * (0.06 + 0.5 * Math.abs(Math.sin(th * rad))));
+      let acc = 0;
+      for (let k = 0; k < N; k++) { acc += th * Math.max(0, Math.min((k + 1) * w, bend) - k * w) / bend; out[k] = acc; }
+      return out;
+    };
+    const aim = th => tgt.set(anglesFor(th));
+    // a point d px from the crease, once settled at th: [across, up toward you]
+    const at = (d, th) => {
+      const a = anglesFor(th), m = Math.min(N - 1, Math.floor(d / w));
+      let u = 0, z = 0;
+      for (let j = 0; j < m; j++) { u += w * Math.cos(a[j] * rad); z += w * Math.sin(a[j] * rad); }
+      const r = d - m * w;
+      return [u + r * Math.cos(a[m] * rad), z + r * Math.sin(a[m] * rad)];
+    };
+    // how much darker (+) or lighter (-) a strip at angle phi looks than flat paper
+    const shadeAt = phi => {
+      const sn = Math.sin(phi * rad), co = Math.cos(phi * rad);
+      let d = (v ? sign * sn * LIGHT[0] : -sign * sn * LIGHT[1]) + co * LIGHT[2];
+      if (co < 0) d = -d;                                // seeing its back
+      return Math.max(-0.08, Math.min(0.18, (LIGHT[2] - d) * 0.28));
+    };
+    const tone = x => x >= 0 ? `oklch(0 0 0/${x.toFixed(3)})` : `oklch(1 0 0/${(-x).toFixed(3)})`;
+    const draw = () => {
+      const sh = Array.from(cur, shadeAt);
+      let prev = 0, u = 0, z = 0, umin = 0, umax = 0, top = 0;
+      for (let k = 0; k < N; k++) {
+        const { st, lit } = strips[k], a = cur[k];
+        st.style.transform = `${fn}(${(sign * (a - prev)).toFixed(2)}deg)`;
+        st.classList.toggle("fstrip--over", a > 90);
+        const A = (sh[k] + sh[Math.max(0, k - 1)]) / 2, B = (sh[k] + sh[Math.min(N - 1, k + 1)]) / 2;
+        lit.style.background = `linear-gradient(to ${dir},${tone(A)},${tone(B)})`;
+        prev = a;
+        u += w * Math.cos(a * rad); z += w * Math.sin(a * rad);
+        umin = Math.min(umin, u); umax = Math.max(umax, u); top = Math.max(top, z);
+      }
+      if (!cast) return;
+      // the shadow: under the paper's footprint, nudged away from the light and softer the higher it is
+      const at = c.at * cell, p = Math.max(0, lo ? at - umax : at + umin), q = Math.min(n * cell, lo ? at - umin : at + umax);
+      box(cast, c.axis, p / cell, q / cell);
+      cast.style.transform = `translate(${(top * 0.14).toFixed(1)}px,${(top * 0.22).toFixed(1)}px)`;
+      cast.style.filter = `blur(${(1.5 + top * 0.09).toFixed(1)}px)`;
+      cast.style.opacity = q > p ? (0.26 * Math.min(1, top / (0.25 * cell)) * (1 - Math.min(0.5, top / len * 0.6))).toFixed(3) : 0;
+    };
+    let raf = 0, token = 0, waiting = [];
+    const step = () => {
+      raf = 0;
+      let moving = false;
+      for (let k = 0; k < N; k++) {
+        const d = tgt[k] - cur[k];
+        if (Math.abs(d) > 0.3) { cur[k] += d * (0.6 - 0.3 * k / Math.max(1, N - 1)); moving = true; } else cur[k] = tgt[k];
+      }
+      draw();
+      if (moving) raf = requestAnimationFrame(step);
+      else { waiting.forEach(f => f()); waiting = []; }
+    };
     const set = th => {
-      theta = th;
-      const sin = Math.sin(th * Math.PI / 180);
-      lf.style.transform = `${fn}(${sign * th}deg)`;
-      lf.style.setProperty("--shade", (sin * 0.12).toFixed(3));
-      lf.classList.toggle("fleaf--over", th > 90);
+      theta = th; aim(th);
       root.classList.toggle("fboard--over", th > 90);
-      const sh = over.querySelector(".fshade");
-      if (sh) sh.style.opacity = (th <= 90 ? sin : 0.5 + 0.5 * sin).toFixed(3);
+      if (prefersReducedMotion()) { cur.set(tgt); draw(); }
+      else if (!raf) raf = requestAnimationFrame(step);
     };
     const paint = sheet => faces.forEach(([i, f]) => {
       f.style.setProperty("--ink", sheet.cells[i] === "." ? "transparent" : COLOURS[sheet.cells[i]]);
       f.classList.remove("fcell--guide", "fcell--wrong", "fcell--smudge");
     });
     paint(s);
-    set(theta);
+    aim(theta); cur.set(tgt); draw(); set(theta);
     return {
       kind: "flap", c, s,
       get theta() { return theta; },
       to(b, ms, ease) { const my = ++token; return tween(theta, b, ms, ease, th => { if (my === token) set(th); }); },
+      // until the trailing edge has caught up (or a moment, whichever is first)
+      settle: () => raf ? Promise.race([new Promise(r => waiting.push(r)), new Promise(r => setTimeout(r, 220))]) : Promise.resolve(),
       paint,
+      at,
       glass(on) { lf.classList.toggle("fleaf--glass", on); },
-      remove() { token++; lf.remove(); root.classList.remove("fboard--over"); }
+      remove() { token++; cancelAnimationFrame(raf); raf = 0; waiting.forEach(f => f()); lf.remove(); if (o.cast) o.cast.remove(); root.classList.remove("fboard--over"); }
     };
   }
-  // the shadow the flap casts on the squares it will land on
-  function shade(c) {
-    const k = c.at, n = c.axis === "v" ? W : H, lo = c.side === "lo";
-    const sh = box(el("div", "fshade"), c.axis, lo ? k : Math.max(0, 2 * k - n), lo ? Math.min(n, 2 * k) : k);
-    const dir = c.axis === "v" ? (lo ? "right" : "left") : (lo ? "bottom" : "top");
-    sh.style.background = `linear-gradient(to ${dir},oklch(0 0 0/.2),transparent)`;
-    return sh;
+  // book feel: the whole sheet either side of the line, each side a bending
+  // sheet with its own shadow
+  function makeBook(s, c, theta) {
+    const sides = ["lo", "hi"].map(side =>
+      makeFlap(s, Object.assign({}, c, { side }), theta, { cast: over.appendChild(el("div", "fcast")), glass: false }));
+    return {
+      kind: "book", c, s,
+      get theta() { return sides[0].theta; },
+      to: (b, ms, ease) => Promise.all(sides.map(f => f.to(b, ms, ease))),
+      settle: () => Promise.all(sides.map(f => f.settle())),
+      paint: sheet => sides.forEach(f => f.paint(sheet)),
+      geo: (side, d, th) => sides[side === "lo" ? 0 : 1].at(d, th),
+      remove() { sides.forEach(f => f.remove()); }
+    };
   }
+  const shade = () => el("div", "fcast");
   // a dot where each pair of squares that will change meets, in the colour
   // both will print (dark ring + hatching if it would smudge the picture)
   function swatches(s, c, t) {
@@ -759,12 +908,14 @@ function makeBoard(root, opts = {}) {
   }
   /* arcs over the line joining each pair of squares that will change, in the
      colour both will become, drawn where the lifted squares appear */
-  function arcs(s, c, t, theta, fade) {
+  function arcs(s, c, t, theta, fade, geo) {
     const next = E.press(s, c), rad = theta * Math.PI / 180, ox = W * cell / 2, oy = H * cell / 2;
     const pt = i => {
       const x = (i % W + 0.5) * cell, y = (Math.floor(i / W) + 0.5) * cell;
-      const d = (c.axis === "v" ? x : y) - c.at * cell, u = c.at * cell + d * Math.cos(rad);
-      const k = PERSP / (PERSP - Math.abs(d) * Math.sin(rad));
+      const d = (c.axis === "v" ? x : y) - c.at * cell;
+      // geo: where a bending sheet puts it; else a flat leaf
+      const [U, Z] = geo ? geo(d < 0 ? "lo" : "hi", Math.abs(d), theta) : [Math.abs(d) * Math.cos(rad), Math.abs(d) * Math.sin(rad)];
+      const u = c.at * cell + Math.sign(d) * U, k = PERSP / (PERSP - Z);
       return c.axis === "v" ? [ox + (u - ox) * k, oy + (y - oy) * k] : [ox + (x - ox) * k, oy + (u - oy) * k];
     };
     const f = n => n.toFixed(1);
@@ -821,8 +972,8 @@ function makeBoard(root, opts = {}) {
         over.appendChild(line(c, o.hint && sameLine(o.hint, c) ? "fline--hint" : ""));
         peek = makeFlap(s, c, th);
         nodes.forEach((n, i) => { if (moves(i, c)) n.classList.add("fcell--lifted"); });
-        if (o.theta == null && !o.hold) peek.to(HOVER, keep ? 220 : 380, easeOutCubic);
-      } else if (o.hint) over.appendChild(line(o.hint, "fline--hint"));
+        if (o.theta == null) peek.to(HOVER, keep ? 220 : 380, easeOutCubic);
+      }
       if (o.grips) for (const [x, y, w, h] of [[W / 2 - 0.6, 0, 1.2, 0], [W / 2 - 0.6, H, 1.2, 0], [0, H / 2 - 0.6, 0, 1.2], [W, H / 2 - 0.6, 0, 1.2]]) {
         const g = el("div", "fgrip");
         g.style.left = x * cell - (w ? 0 : 3) + "px"; g.style.top = y * cell - (h ? 0 : 3) + "px";
@@ -835,31 +986,36 @@ function makeBoard(root, opts = {}) {
     if (!fold && peek) { peek.remove(); peek = null; }
     if (c && !fold) {
       const [a, b] = span(c), flat = prefersReducedMotion();
-      peek = makePeek(s, c, keep && !flat ? PEEK : 0);
+      peek = whole ? makeBook(s, c, keep && !flat ? PEEK : 0) : makePeek(s, c, keep && !flat ? PEEK : 0);
       nodes.forEach((n, i) => {
         const v = along(i, c.axis);
         n.classList.add(v < a || v >= b ? "fcell--dim" : "fcell--lifted");
       });
       if (!o.still) {
         if (!keep && !flat) peek.to(PEEK, 220, easeOutCubic);
-        over.appendChild(arcs(s, c, t, flat ? 0 : PEEK, !keep));
+        over.appendChild(arcs(s, c, t, flat ? 0 : PEEK, !keep, peek.geo));
       }
       over.appendChild(line(c, o.hint && sameLine(o.hint, c) ? "fline--hint" : ""));
     }
     if (o.notches) {
-      const add = (axis, k) => {
+      // whole: a tab at both ends of every line; the far ends are for pointers only
+      const add = (axis, k, far) => {
         const n = el("button", "fnotch fnotch--" + axis);
         n.type = "button";
         n.setAttribute("aria-label", (axis === "v" ? "Vertical" : "Horizontal") + " fold line " + k);
-        if (axis === "v") { n.style.left = k * cell - 22 + "px"; n.style.top = "-44px"; }
-        else { n.style.top = k * cell - 22 + "px"; n.style.left = "-44px"; }
+        if (far) { n.tabIndex = -1; n.setAttribute("aria-hidden", "true"); }
+        if (axis === "v") { n.style.left = k * cell - 22 + "px"; n.style.top = far ? H * cell + "px" : "-44px"; }
+        else { n.style.top = k * cell - 22 + "px"; n.style.left = far ? W * cell + "px" : "-44px"; }
+        n.classList.add("fnotch--" + (axis === "v" ? (far ? "bottom" : "top") : (far ? "right" : "left")));
         if (c && c.axis === axis && c.at === k) n.classList.add("fnotch--on");
         if (o.hint && o.hint.axis === axis && o.hint.at === k) n.classList.add("fnotch--hint");
         n.dataset.axis = axis; n.dataset.at = k;
         over.appendChild(n);
       };
-      for (let k = 1; k < W; k++) add("v", k);
-      for (let k = 1; k < H; k++) add("h", k);
+      for (const far of whole ? [false, true] : [false]) {
+        for (let k = 1; k < W; k++) add("v", k, far);
+        for (let k = 1; k < H; k++) add("h", k, far);
+      }
     }
   }
   // close the book, press (the touching inks mix on both sides), then open it
@@ -883,6 +1039,7 @@ function makeBoard(root, opts = {}) {
       f.glass(false);
       over.querySelectorAll(".fswatch").forEach(n => n.remove());
       await f.to(180, 90 + 1.6 * (180 - f.theta), easeInCubic);
+      await f.settle();
       f.paint(next);
       await anim(root, [{ transform: "scale(1)" }, { transform: "scale(.975)" }, { transform: "scale(1)" }],
         { duration: 160, easing: "ease-out", reduced: null });
@@ -896,6 +1053,7 @@ function makeBoard(root, opts = {}) {
     const pk = peek, arc = over.querySelector(".farcs");
     if (arc) arc.remove();
     await pk.to(90, 80 + 3 * (90 - pk.theta), easeInCubic);
+    if (pk.settle) await pk.settle();
     pk.paint(next);
     await anim(root, [{ transform: "scale(1)" }, { transform: "scale(.982)" }, { transform: "scale(1)" }],
       { duration: 140, easing: "ease-out", reduced: null });
@@ -916,12 +1074,53 @@ function makeBoard(root, opts = {}) {
     const a = over.querySelector(".farcs");
     if (a) a.style.visibility = "";
   }
+  // book feel: how far a tab's been dragged in along line c, and the point past
+  // which letting go presses (in squares from that edge). into null clears it
+  function zip(c, from, into, thr) {
+    let fill = over.querySelector(".fzip--fill"), mark = over.querySelector(".fzip--mark");
+    if (into == null) { if (fill) fill.remove(); if (mark) mark.remove(); return; }
+    if (!fill) { fill = over.appendChild(el("div", "fzip fzip--fill")); mark = over.appendChild(el("div", "fzip fzip--mark")); }
+    const v = c.axis === "v", depth = (v ? H : W) * cell, x = c.at * cell, near = from !== "bottom" && from !== "right";
+    const len = Math.max(0, Math.min(depth, into * cell)), a = near ? 0 : depth - len, m = near ? thr * cell : depth - thr * cell;
+    if (v) { Object.assign(fill.style, { left: x - 2 + "px", top: a + "px", width: "4px", height: len + "px" }); Object.assign(mark.style, { left: x + "px", top: m + "px" }); }
+    else { Object.assign(fill.style, { top: x - 2 + "px", left: a + "px", height: "4px", width: len + "px" }); Object.assign(mark.style, { top: x + "px", left: m + "px" }); }
+    mark.classList.toggle("fzip--past", into >= thr);
+  }
+  /* book feel: a ghost finger takes hold of the tab, drags it in a little and
+     the paper starts to shut, then lets go */
+  let demoTok = 0, demoOn = false;
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  async function demo(c, from) {
+    if (!peek || prefersReducedMotion()) return;
+    const my = ++demoTok, pk = peek, v = c.axis === "v", depth = (v ? H : W) * cell;
+    const near = from !== "bottom" && from !== "right", e = near ? -22 : depth + 22, reach = (22 + depth * 0.3) * (near ? 1 : -1);
+    const g = over.appendChild(el("div", "fghost"));
+    if (v) { g.style.left = c.at * cell + "px"; g.style.top = e + "px"; } else { g.style.top = c.at * cell + "px"; g.style.left = e + "px"; }
+    const to = v ? `translate(0,${reach}px)` : `translate(${reach}px,0)`;
+    demoOn = true;
+    anim(g, [{ opacity: 0, transform: "scale(1.4)" }, { opacity: 1, transform: "scale(1)", offset: 0.15 },
+      { opacity: 1, transform: to, offset: 0.6 }, { opacity: 0, transform: to }], { duration: 1500, easing: "ease-in-out", reduced: null });
+    await pause(225);
+    const a = over.querySelector(".farcs");
+    if (my === demoTok && peek === pk) { if (a) a.style.visibility = "hidden"; await pk.to(52, 675, easeOutCubic); }
+    if (my === demoTok && peek === pk) await pk.to(PEEK, 520, easeOutBack);
+    if (my === demoTok) { if (a) a.style.visibility = ""; g.remove(); demoOn = false; }
+  }
+  function demoStop() {
+    demoTok++;
+    over.querySelectorAll(".fghost").forEach(g => g.remove());
+    if (!demoOn) return;
+    demoOn = false;
+    const a = over.querySelector(".farcs");
+    if (a) a.style.visibility = "";
+    if (peek && peek.kind === "book") peek.to(PEEK, 160, easeOutCubic);
+  }
   // fold feel: hold the flap at an angle (following a finger), or ease it there
   const tilt = (th, ms = 0) => peek && peek.kind === "flap" ? peek.to(th, ms, easeOutCubic) : Promise.resolve();
   const toGrid = (cx, cy) => { const r = root.getBoundingClientRect();
     return { x: (cx - r.left) / cell, y: (cy - r.top) / cell }; };
   const inkNodes = () => nodes.filter(n => n.style.getPropertyValue("--ink") !== "transparent").map(n => n.firstChild);
-  return { render, press, bend, unbend, tilt, toGrid, measure, setSize, inkNodes };
+  return { render, press, bend, unbend, tilt, zip, demo, demoStop, toGrid, measure, setSize, inkNodes };
 }
 
 function renderThumb() {
@@ -939,8 +1138,8 @@ function renderThumb() {
 /* ════════════════════════════════════════════════════════════════════════
    PLAY
    ════════════════════════════════════════════════════════════════════════ */
-const board = makeBoard($("#fboard"), { fold: FEEL_FOLD });
-const reveal = makeBoard($("#reveal"), { fold: FEEL_FOLD });
+const board = makeBoard($("#fboard"), { fold: FEEL_FOLD, whole: FEEL_BOOK });
+const reveal = makeBoard($("#reveal"), { fold: FEEL_FOLD, whole: FEEL_BOOK });
 
 function resetRound() {
   S.lv = levelData(level());
@@ -955,14 +1154,13 @@ function renderPlay(o = {}) {
   board.render(S.sheet, Object.assign({ target: S.won ? null : S.lv.target,
     hint: S.hint, notches: !S.won, creases: S.moves, grips: FEEL_FOLD && !S.won && !sel }, o, { sel }));
   // what pressing the peeked line would do
-  const ch = sel && !S.checking ? E.changes(S.sheet, sel) : null, shut = dragging && o.theta >= 90;
+  const ch = sel && !S.checking ? E.changes(S.sheet, sel) : null;
   const smudges = !!(ch && ch.length) && E.isDead(E.press(S.sheet, sel), S.lv.target) && !E.isDead(S.sheet, S.lv.target);
-  const idle = FEEL_FOLD ? "Pull an edge of the paper across to fold it" : "Tap a tab on the edge to pick a fold";
-  const act = !FEEL_FOLD ? ". Tap the paper to press" : !dragging ? ". Tap the paper to squish it" : shut ? ". Let go to squish it" : "";
+  const idle = FEEL_FOLD ? "Pull an edge of the paper across to fold it" : FEEL_BOOK ? "Tap a tab on any edge to pick a fold" : "Tap a tab on the edge to pick a fold";
+  const act = dragging ? "" : FEEL_FOLD ? ". Tap the paper to squish it" : FEEL_BOOK ? ". Tap the paper, or drag a tab across" : ". Tap the paper to press";
   $("#hudText").textContent = !ch ? (S.presses ? HUD_IDLE : idle)
     : !ch.length ? "Nothing new would print " + (FEEL_FOLD ? "there" : "on this line")
-    : smudges ? "Careful: that would smudge the picture" + (shut ? ". Pull back to cancel" : "")
-    : ch.length + " squares will print" + act;
+    : smudges ? "Careful: that would smudge the picture" : ch.length + (ch.length === 1 ? " square" : " squares") + " will print" + act;
   $("#foldCount").textContent = S.presses;
   $("#parLabel").textContent = "/ par " + S.lv.par;
   $("#undoBtn").disabled = S.checking || S.won || !S.moves.length;
@@ -970,6 +1168,7 @@ function renderPlay(o = {}) {
   $("#hintBtn").disabled = S.checking || S.won;
   if (S.tutorial) tutCopy();
   if (S.debug) renderDebug();
+  armDemo();
 }
 
 function nudge() {
@@ -977,13 +1176,13 @@ function nudge() {
   shake($("#fboard"), "fboard--shake");
 }
 
-async function doPress(c, held) {
+async function doPress(c) {
   if (S.checking || S.won) return;
   if (S.tutorial && !sameLine(c, TUT_STEPS[S.tutorial.step].move)) { nudge(); armTutHint(0); return; }
   const prev = S.sheet, next = E.press(prev, c);
   if (next.cells === prev.cells) { nudge(); toast("Nothing new to print there"); return; }
   S.checking = true; S.presses++; stopTutHint();
-  renderPlay(held ? { sel: c, hold: true } : {});                // held: the flap carries on from your finger
+  renderPlay();
   await board.press(prev, next, c, { target: S.lv.target, notches: true });
   S.history.push(prev); S.moves.push(c); S.sheet = next; S.sel = null; S.hint = null;
   haptic("press");
@@ -1019,11 +1218,13 @@ $("#resetBtn").onclick = resetBoard;
 const stage = $(".fstage");
 let ptr = null;
 const clampLine = (k, n) => Math.max(1, Math.min(n - 1, k));
-// the tab under a point (in squares, relative to the paper), if any
+// the tab under a point (in squares, relative to the paper), if any, and which edge it's on
 function tabAt(p) {
-  const W = S.sheet.w, H = S.sheet.h;
-  if (p.y < 0 && p.x > -0.25 && p.x < W + 0.25) return { axis: "v", at: clampLine(Math.round(p.x), W) };
-  if (p.x < 0 && p.y > -0.25 && p.y < H + 0.25) return { axis: "h", at: clampLine(Math.round(p.y), H) };
+  const W = S.sheet.w, H = S.sheet.h, inX = p.x > -0.25 && p.x < W + 0.25, inY = p.y > -0.25 && p.y < H + 0.25;
+  if (p.y < 0 && inX) return { axis: "v", at: clampLine(Math.round(p.x), W), from: "top" };
+  if (p.x < 0 && inY) return { axis: "h", at: clampLine(Math.round(p.y), H), from: "left" };
+  if (FEEL_BOOK && p.y >= H && inX) return { axis: "v", at: clampLine(Math.round(p.x), W), from: "bottom" };
+  if (FEEL_BOOK && p.x >= W && inY) return { axis: "h", at: clampLine(Math.round(p.y), H), from: "right" };
   return null;
 }
 let tabNudgeT;
@@ -1053,7 +1254,8 @@ stage.addEventListener("pointerdown", e => {
   if (!onPaper && !tab) return;
   e.preventDefault();
   ptr = { p, tab, was: S.sel, mode: null, zip: 0 };
-  if (tab) select(tab);
+  stopDemo();
+  if (tab) { S.selFrom = tab.from; select({ axis: tab.axis, at: tab.at }); }
   stage.setPointerCapture(e.pointerId);
 });
 stage.addEventListener("pointermove", e => {
@@ -1062,14 +1264,24 @@ stage.addEventListener("pointermove", e => {
   if (!ptr.tab) { if (Math.hypot(q.x - ptr.p.x, q.y - ptr.p.y) > 0.4) ptr.mode = "moved"; return; }
   const c = S.sel;
   if (!c) return;                                              // the tutorial turned that tab down
-  const v = c.axis === "v", along = v ? q.x : q.y, into = v ? q.y : q.x, depth = v ? S.sheet.h : S.sheet.w;
-  if (ptr.mode !== "zip" && into > 0.35) { ptr.mode = "zip"; haptic("select"); }
+  const v = c.axis === "v", along = v ? q.x : q.y, depth = v ? S.sheet.h : S.sheet.w;
+  const into = { top: q.y, left: q.x, bottom: S.sheet.h - q.y, right: S.sheet.w - q.x }[ptr.tab.from];
+  if (FEEL_BOOK && ptr.mode === "zip" && into < 0) {
+    // pulled right back out to the edge: the paper opens back up, and you can slide to another line
+    ptr.mode = "slide"; ptr.zip = 0; haptic("select"); renderPlay();
+    return;
+  }
+  if (ptr.mode !== "zip" && into > 0.35) {
+    ptr.mode = "zip"; haptic("select");
+    if (FEEL_BOOK) try { localStorage.setItem("ink-zip", "1"); } catch {}       // found it: no more demos
+  }
   if (ptr.mode === "zip") {
-    // pulling halfway down the paper shuts it
+    // pulling halfway across the paper shuts it
     const k = Math.max(0, Math.min(1, (into - 0.35) / (depth * 0.5)));
+    if (FEEL_BOOK) board.zip(c, ptr.tab.from, into, 0.35 + depth * 0.25);
     if (k >= 0.5 !== ptr.zip >= 0.5) {
       haptic("select");
-      $("#hudText").textContent = k >= 0.5 ? "Let go to press" : "Keep going to fold it shut";
+      $("#hudText").textContent = k >= 0.5 ? (FEEL_BOOK ? "Let go to press, or pull back" : "Let go to press") : "Keep going to fold it shut";
     }
     ptr.zip = k;
     board.bend(PEEK + (75 - PEEK) * k);      // stop short of shut so you can still see it
@@ -1095,9 +1307,32 @@ stage.addEventListener("pointerup", () => {
 });
 stage.addEventListener("pointercancel", () => {
   if (FEEL_FOLD) return;
-  if (ptr && ptr.mode === "zip") board.unbend();
+  if (ptr && ptr.mode === "zip") board.unbend().then(() => { if (!ptr && !S.checking) renderPlay(); });
   ptr = null;
 });
+/* book feel: once a line's picked, until you've dragged a tab across once, a
+   ghost finger shows how (twice per line, after a moment's pause) */
+let demoT = null, demoKey = "";
+function zipLearned() { try { return localStorage.getItem("ink-zip") === "1"; } catch { return true; } }
+function armDemo() {
+  if (!FEEL_BOOK) return;
+  const key = S.sel && !S.checking && !S.won && !zipLearned() ? S.sel.axis + S.sel.at : "";
+  if (key === demoKey) return;
+  stopDemo();
+  demoKey = key;
+  if (!key) return;
+  let runs = 0;
+  const run = ms => {
+    demoT = setTimeout(async () => {
+      if (demoKey !== key) return;
+      if (ptr || S.checking) { run(400); return; }                  // finger down: wait
+      await board.demo(S.sel, S.selFrom);
+      if (++runs < 2 && demoKey === key) run(2600);
+    }, ms);
+  };
+  run(1200);
+}
+function stopDemo() { clearTimeout(demoT); demoT = null; demoKey = ""; board.demoStop(); }
 // keyboard: the tabs are buttons, Enter on the paper presses
 stage.addEventListener("click", e => {
   const n = e.target.closest(".fnotch");
@@ -1114,8 +1349,9 @@ $("#fboard").addEventListener("keydown", e => {
    holding stays under it. Once your finger passes a line, the paper flops
    right over on that line (see-through, with a dot on each pair of squares
    that will touch, in the colour they'll print); keep going to move the
-   crease to the next line. Let go and it squishes (that's the press). Pull
-   back before the first line to put it down for free. ─────────────────── */
+   crease to the next line. Let go and it waits there: tap the paper to
+   squish it (that's the press). Pull it back, or tap the desk, to put it
+   down for free. ──────────────────────────────────────────────────── */
 const GRAB = 1.25;                 // how far in from an edge (in squares) counts as holding it
 const SHUT = 172;                  // a flap that's flopped over, not yet squished
 const BACK = 0.2;                  // how far back past a line before the crease steps back too
@@ -1141,6 +1377,14 @@ function foldFor(edge, g, f, k) {
   const theta = k != null ? SHUT : Math.acos(Math.max(-1, Math.min(1, (first - f) / (first - g)))) * 180 / Math.PI;
   return { k, c: { axis: edge.axis, at: edge.side === "lo" ? at : n - at, side: edge.side }, theta };
 }
+// the flap waiting over the paper, if p is on it: hold it as if just past its line
+function restingFlap(p) {
+  if (!S.sel) return null;
+  const c = withSide(S.sel, S.sheet), edge = EDGES.find(ed => ed.axis === c.axis && ed.side === c.side);
+  const k = c.side === "lo" ? c.at : (c.axis === "v" ? S.sheet.w : S.sheet.h) - c.at, d = edge.dist(p);
+  if (d < k - 0.6 || d > 2 * k + 0.6) return null;
+  return { edge, g: 0, f0: k + 0.5, k };
+}
 async function unfold() {
   S.checking = true; await board.tilt(0, 280); S.checking = false;
   S.sel = null;
@@ -1158,12 +1402,13 @@ async function letGo(d) {
     if (why === "nothing") { nudge(); toast("Nothing new would print there"); }
     return;
   }
-  doPress(c, true);
+  S.sel = c;
+  haptic("select");
+  renderPlay();                                                // keeps the flap; it eases back to wait over the paper
 }
 stage.addEventListener("pointerdown", e => {
   if (!FEEL_FOLD || S.checking || S.won || !e.isPrimary) return;
   e.preventDefault();
-  if (demoOn) { demo++; demoOn = false; renderPlay(); }        // a hint was showing the fold: put it down
   const p = board.toGrid(e.clientX, e.clientY);
   fptr = { p, onPaper: onSheet(p), mode: null };
   stage.setPointerCapture(e.pointerId);
@@ -1175,12 +1420,18 @@ stage.addEventListener("pointermove", e => {
     const len = Math.hypot(dx, dy);
     if (len < 0.25) return;
     fptr.mode = "none";
-    // take hold of the edge you're near that you're pulling away from
-    const best = EDGES.map(ed => ({ ed, d: ed.dist(fptr.p), dot: (dx * ed.inward[0] + dy * ed.inward[1]) / len }))
-      .filter(o => o.d > -1 && o.d <= GRAB && o.dot > 0.6).sort((a, b) => b.dot - a.dot)[0];
-    if (best) {
-      const g = Math.max(0, best.d);
-      Object.assign(fptr, { edge: best.ed, g, f0: g, mode: "fold", cur: null, k: null, theta: 0 });
+    // pick the waiting flap back up (moving along its fold), else take hold of
+    // the edge you're near that you're pulling away from
+    const rest = restingFlap(fptr.p);
+    let hold = rest && (rest.edge.axis === "v" ? Math.abs(dx) > Math.abs(dy) : Math.abs(dy) > Math.abs(dx))
+      ? Object.assign(rest, { cur: withSide(S.sel, S.sheet), theta: SHUT }) : null;
+    if (!hold) {
+      const best = EDGES.map(ed => ({ ed, d: ed.dist(fptr.p), dot: (dx * ed.inward[0] + dy * ed.inward[1]) / len }))
+        .filter(o => o.d > -1 && o.d <= GRAB && o.dot > 0.6).sort((a, b) => b.dot - a.dot)[0];
+      if (best) { const g = Math.max(0, best.d); hold = { edge: best.ed, g, f0: g, cur: null, k: null, theta: 0 }; }
+    }
+    if (hold) {
+      Object.assign(fptr, hold, { mode: "fold" });
       S.sel = null; stopTutHint();
     }
   }
@@ -1225,21 +1476,9 @@ function doHint() {
   const m = E.isDead(S.sheet, S.lv.target) ? null : nextMove();
   if (!m) { shake($("#hintBtn"), "iconbtn--shake"); toast("Some ink smudged. Try Undo"); return; }
   S.hints++;
+  S.hint = m; S.sel = { axis: m.axis, at: m.at };
   haptic("hint");
-  showMove(m);
-}
-// point out a fold: pick its line, or in the fold feel lift that edge and lay it back down
-// (taking hold of the paper cuts the demo short)
-let demo = 0, demoOn = false;
-async function showMove(m) {
-  S.hint = m;
-  if (!FEEL_FOLD) { S.sel = { axis: m.axis, at: m.at }; renderPlay(); return; }
-  const my = ++demo;
-  S.sel = null; demoOn = true;
-  renderPlay({ sel: m, theta: 0 });
-  await board.tilt(115, 460);
-  if (my === demo) await board.tilt(0, 340);
-  if (my === demo) { demoOn = false; renderPlay(); }
+  renderPlay();
 }
 $("#hintBtn").onclick = doHint;
 
@@ -1393,7 +1632,7 @@ const TUT_STEPS = {
 };
 if (FEEL_FOLD) {
   Object.assign(TUT_STEPS[1], {
-    copy: "Wet ink prints onto whatever it touches. Take hold of the <strong>left edge</strong>, pull it past the middle and let go.",
+    copy: "Wet ink prints onto whatever it touches. Take hold of the <strong>left edge</strong> and pull it past the middle.",
     pill: "Pull the left edge past the middle",
     peek: "Each dot shows what two touching squares will print. <strong>Tap the paper</strong> to squish it flat." });
   Object.assign(TUT_STEPS[2], {
@@ -1411,8 +1650,8 @@ function armTutHint(delay = 3000) {
     if (!S.tutorial) return;
     if (S.checking || ptr || fptr) { armTutHint(300); return; }     // finger still down: try again shortly
     const m = TUT_STEPS[S.tutorial.step].move;
-    if (!FEEL_FOLD) { S.hint = m; S.sel = m; renderPlay(); return; }
-    showMove(m).then(() => { if (S.tutorial && !S.won) armTutHint(4000); });
+    S.hint = m; S.sel = m;
+    renderPlay();
   }, delay);
 }
 function tutCopy() {
@@ -1509,11 +1748,17 @@ $("#mark-done").innerHTML = MARK(52);
 $("#mark-levels").innerHTML = MARK(64);
 $("#mixkey").innerHTML = [["R", "Y", "O"], ["R", "B", "P"], ["Y", "B", "G"]].map(([a, b, c]) =>
   `<p><i style="--ink:${COLOURS[a]}"></i>+<i style="--ink:${COLOURS[b]}"></i>=<i style="--ink:${COLOURS[c]}"></i></p>`).join("");
+if (FEEL_BOOK) {
+  document.body.classList.add("book-feel");
+  $("#how-pick").textContent = "Tap a tab on any edge to pick a fold and peek: the sheet lifts either side of that line, and arcs join each pair of squares that will touch, in the colour they'll become. Slide along the edge to try the lines beside it. Peeking is free.";
+  $("#how-press").textContent = "Tap the paper to press it, or drag the tab across the paper to fold it shut. Changed your mind? Pull back: drag all the way out to the edge and you can slide to another line.";
+  $("#fboard").setAttribute("aria-label", "Paper sheet. Pick a fold with the tabs around the edges, then tap the paper or press Enter to print.");
+}
 if (FEEL_FOLD) {
   document.body.classList.add("fold-feel");
-  $("#how-pick").textContent = "Take hold of an edge of the paper and pull it across. Once your finger passes a line, the paper flops over on that line, with a dot on each pair of squares that will touch, in the colour they'll print. Keep pulling to move the fold to the next line. Changed your mind? Pull it back.";
-  $("#how-press").textContent = "Let go to squish it flat. That's a press.";
-  $("#fboard").setAttribute("aria-label", "Paper sheet. Pull an edge across past a line and let go to fold it. Keyboard: tab to a fold line, then press Enter twice.");
+  $("#how-pick").textContent = "Take hold of an edge of the paper and pull it across. Once your finger passes a line, the paper flops over on that line; keep pulling to move it to the next line. Let go and it waits there, with a dot on each pair of squares that will touch, in the colour they'll print. Looking is free: pull it back, or tap the desk, to put it down.";
+  $("#how-press").textContent = "Tap the paper to squish it flat. That's a press.";
+  $("#fboard").setAttribute("aria-label", "Paper sheet. Pull an edge across past a line to fold it, then tap the paper to press. Keyboard: tab to a fold line, then press Enter twice.");
 }
 resetRound();
 go("levels");
